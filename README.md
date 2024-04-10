@@ -12,7 +12,8 @@ A .env file is needed in order to configure the database connection. An example 
 
 ## Contents
 
-- `study.ipynb`: Summary of all I've been learning/working on. It's supposed to work with a `.env` file that describes how to connect to a valid MusicBrainz database server.
+- `recordings_and_releases.ipynb`: Summary of all I've been learning/working on about `recordings` and `releases`, as well of teh code needed to extract CSVs and some graphs. 
+- `genres.ipynb`: Shows that genres are sadly impossible to extract via MusicBrainz. *(Soon)*
 
 ## Dependencies
 
