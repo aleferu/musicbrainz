@@ -11,6 +11,7 @@ A .env file is needed in order to configure the database connection. An example 
 - `recordings_and_releases.ipynb`: Summary of all I've been learning/working on about `recordings` and `releases`, as well of the needed code to extract CSVs and some graphs. 
 - `genres.ipynb`: Shows that genres are impossible to extract via MusicBrainz. At least I can't find the way at the moment.
 - `artist_artist.ipynb`: Shows how to generate CSVs containing information on relationships between artists and how to merge different instances of the same artist.
+- `various_artists_cleanup.py`: Script that merges the releases CSVs while removing the artist with ID 1 ("Various Artists").
 
 ## Dependencies
 
