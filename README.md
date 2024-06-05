@@ -12,6 +12,7 @@ A .env file is needed in order to configure the database connection. An example 
 - `genres.ipynb`: Shows that genres are impossible to extract via MusicBrainz. At least I can't find the way at the moment.
 - `artist_artist.ipynb`: Shows how to generate CSVs containing information on relationships between artists and how to merge different instances of the same artist.
 - `various_artists_cleanup.py`: Script that merges the releases CSVs while removing the artist with ID 1 ("Various Artists").
+- `releases_artist_merge.ipynb`: Modifies the releases CSV created by `various_artist_cleanup.py`, merging the different instances of the same artist. Uses the same idea described in `artist_artist.ipynb`.
 
 ## Dependencies
 
