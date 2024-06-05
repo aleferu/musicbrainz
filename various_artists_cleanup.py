@@ -31,8 +31,8 @@ def remove_various_artist(row: dict[str, str]) -> dict[str, str]:
         return row
 
     # Place another instance at its place, filling the gap
-    aux_id = row[f"a{row["artist_count"]}_id"]
-    aux_name = row[f"a{row["artist_count"]}_name"]
+    aux_id = row[f"a{row['artist_count']}_id"]
+    aux_name = row[f"a{row['artist_count']}_name"]
     row[f"a{various_artist_position}_id"] = aux_id
     row[f"a{various_artist_position}_name"] = aux_name
 
