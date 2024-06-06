@@ -2,4 +2,4 @@
 sql-scripts/
 *.csv
 tests.ipynb
-
+*.jsonl
