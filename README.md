@@ -20,19 +20,20 @@ They must be executed in the following order (the subitems are the files generat
     - `artists.jsonl`
     - `relationships.csv`
     - `releases_no_va_merged.csv`
+- `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 
 ## Dependencies
 
 A working python environment with the following:
 
 ```
-psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook
+psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook networkx
 ```
 
 Use conda, pip... Whatever. Example:
 
 ```bash
-conda create -n foo psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook
+conda create -n foo psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook networkx
 ```
 
 ## Database installation
