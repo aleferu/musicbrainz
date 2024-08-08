@@ -21,7 +21,7 @@ They must be executed in the following order (the subitems are the files generat
     - `relationships.csv`
     - `releases_no_va_merged.csv`
 - `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
-- `add_id_final_releases_csv.py`: Generates an id column to `releases_no_va_merged.csv`.
+- `add_id_final_releases_csv.py`: Generates an id column to `releases_no_va_merged.csv` and modifies the data so that Neo4j won't complain.
     - `releases_no_va_merged_id.csv`
 
 ## Dependencies
