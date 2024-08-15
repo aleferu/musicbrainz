@@ -71,7 +71,7 @@ def import_releases(driver: Driver):
                 MERGE (a)-[:WORKED_IN]->(r)
                 MERGE (r)-[:WORKED_BY]->(a)
             ",
-            {batchSize: 50000, parallel: true, concurrency: 8}
+            {batchSize: 50000}
         );
     """
     execute_query(driver, query, True)
