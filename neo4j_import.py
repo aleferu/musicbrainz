@@ -53,7 +53,8 @@ def import_artists(driver: Driver):
                 tags: [],
                 listeners: 0,
                 playcount: 0,
-                in_last_fm: true
+                last_fm_call: false,
+                in_last_fm: false,
             })",
             {batchSize: 10000, parallel: true, concurrency: 8}
         );
