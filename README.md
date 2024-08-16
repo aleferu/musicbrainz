@@ -42,9 +42,34 @@ Use conda, pip... Whatever. Example:
 conda create -n foo psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook networkx
 ```
 
-## Database installation
+## PostgreSQL (MusicBrainz) database installation
 
 I followed [this link](https://musicbrainz.org/doc/MusicBrainz_Server/Setup), section **Setup from source code**. In theory you can install the database without the web server but I didn't want to mess up by skipping a crucial step by accident. The web server installation is very fast, unlike the database installation, so I recommend doing it that way.
+
+## Neo4j database installation
+
+Just used Debian's (or Mint's in my case) APT command and added some configuration to `/etc/neo4j/neo4j.conf`. Guide: [link to guide](https://debian.neo4j.com/).
+
+```bash
+wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
+echo 'deb https://debian.neo4j.com stable 5' | sudo tee /etc/apt/sources.list.d/neo4j.list
+sudo apt update
+sudo apt install neo4j
+```
+
+Configuration (added at the start of `/etc/neo4j/neo4j.conf`):
+
+```
+server.memory.heap.max_size=8G
+server.memory.heap.initial_size=7G
+dbms.security.auth_enabled=false
+dbms.usage_report.enabled=false
+dbms.security.procedures.unrestricted=apoc.*
+dbms.security.procedures.allowlist=apoc.*
+dbms.memory.transaction.total.max=7g
+```
+
+The just `sudo neo4j start/stop/restart...` to run.
 
 ## LICENSE
 
