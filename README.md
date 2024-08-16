@@ -26,6 +26,7 @@ They must be executed in the following order (the subitems are the files generat
 - `add_id_final_releases_csv.py`: Generates an id column to `releases_no_va_merged.csv` and modifies the data so that Neo4j won't complain.
     - `releases_no_va_merged_id.csv`
 - `neo4j_import.py`: Imports our current dataset into a [Neo4j database](https://neo4j.com/).
+    - From now on the idea is to never manage several files anymore and keep it in this Neo4j DB.
 
 ## Dependencies
 

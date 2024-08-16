@@ -20,6 +20,17 @@ def execute_query(driver: Driver, query: LiteralString | str, print_records: boo
                 print(record)
 
 
+def remove_db(driver: Driver):
+    query = """
+        CALL apoc.periodic.iterate(
+          "MATCH (n) RETURN n",
+          "DETACH DELETE n",
+          {batchSize: 100000}
+        );
+    """
+    execute_query(driver, query, True)
+
+
 def import_artists(driver: Driver):
     # dbms.security.procedures.unrestricted=apoc.*
     # dbms.security.procedures.allowlist=apoc.*
@@ -38,7 +49,8 @@ def import_artists(driver: Driver):
                 known_names: value.known_names,
                 tags: [],
                 listeners: 0,
-                playcount: 0
+                playcount: 0,
+                in_last_fm: true
             })",
             {batchSize: 10000, parallel: true, concurrency: 8}
         );
@@ -90,10 +102,48 @@ def add_coll_links(driver: Driver):
             ON MATCH SET c1.count = c1.count + 1
         ;
     """
-    execute_query(driver, query, True)
+    execute_query(driver, query)
+
+
+def add_relationships_links(driver: Driver):
+    relationship_mappings = [
+        {"types": [102, 103, 104, 105, 106, 107, 108, 305, 728, 855, 965], "label": "MUSICALLY_RELATED_TO"},
+        {"types": [109, 110, 111, 112, 113, 292, 973, 1079], "label": "PERSONALLY_RELATED_TO"},
+        {"types": [722, 847, 895], "label": "LINKED_TO"},
+    ]
+
+    for mapping in relationship_mappings:
+        types_list = str(mapping["types"])
+        relationship_label = mapping["label"]
+
+        query = f"""
+            CALL apoc.periodic.iterate(
+                "
+                    LOAD CSV WITH HEADERS FROM 'file:///relationships_clean.csv' AS row
+                    RETURN row
+                ",
+                "
+                    MATCH (a0:Artist {{main_id: row.id0}}), (a1:Artist {{main_id: row.id1}})
+                    WITH a0, a1, toInteger(row.relationship_type) as rel_type
+                    WHERE rel_type IN {types_list}
+                    WITH a0, a1
+                    MERGE (a0)-[rel:{relationship_label}]->(a1)
+                        ON CREATE SET rel.count = 1
+                        ON MATCH SET rel.count = rel.count + 1
+                    MERGE (a1)-[rel_back:{relationship_label}]->(a0)
+                        ON CREATE SET rel_back.count = 1
+                        ON MATCH SET rel_back.count = rel_back.count + 1
+                ",
+                {{batchSize: 10000}}
+            );
+        """
+        execute_query(driver, query, True)
 
 
 def main(driver: Driver) -> None:
+    # Remove last iteration of the db
+    remove_db(driver)
+
     # First let's import our artist database
     import_artists(driver)
 
@@ -102,6 +152,9 @@ def main(driver: Driver) -> None:
 
     # Create the collaboration links
     add_coll_links(driver)
+
+    # Create the relationships links
+    add_relationships_links(driver)
 
 
 if __name__ == '__main__':
