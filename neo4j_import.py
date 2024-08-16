@@ -8,6 +8,9 @@ This script will import all of our current information into a neo4j database.
 
 from typing import LiteralString
 from neo4j import Driver, GraphDatabase, basic_auth
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 
 def execute_query(driver: Driver, query: LiteralString | str, print_records: bool = False):
@@ -116,6 +119,8 @@ def add_relationships_links(driver: Driver):
         types_list = str(mapping["types"])
         relationship_label = mapping["label"]
 
+        # Must be a faster way but it works so good enough for now
+        # It's also fast so might never change it
         query = f"""
             CALL apoc.periodic.iterate(
                 "
@@ -158,8 +163,21 @@ def main(driver: Driver) -> None:
 
 
 if __name__ == '__main__':
+    # .env read
+    DB_HOST = os.getenv("NEO4J_HOST")
+    DB_PORT = os.getenv("NEO4J_PORT")
+    DB_USER = os.getenv("NEO4J_USER")
+    DB_PASS = os.getenv("NEO4J_PASS")
+
+    # .env validation
+    assert DB_HOST is not None and \
+        DB_PORT is not None and \
+        DB_USER is not None and \
+        DB_PASS is not None, \
+        "INVALID .env"
+
     # db connection
-    driver = GraphDatabase.driver("bolt://localhost:7687", auth=basic_auth("neo4j", ""))
+    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
     main(driver)
 
