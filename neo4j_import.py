@@ -10,7 +10,7 @@ from typing import LiteralString
 from neo4j import Driver, GraphDatabase, basic_auth
 
 
-def execute_query(driver: Driver, query: LiteralString, print_records: bool = False):
+def execute_query(driver: Driver, query: LiteralString | str, print_records: bool = False):
     with driver.session() as session:
         print(f"Querying '{query}'...")
         result = session.run(query)
@@ -77,12 +77,31 @@ def import_releases(driver: Driver):
     execute_query(driver, query, True)
 
 
+def add_coll_links(driver: Driver):
+    query = """
+        MATCH (a0:Artist)-[:WORKED_IN]->(r:Release)<-[:WORKED_IN]-(a1:Artist)
+        WHERE a0.main_id < a1.main_id
+        WITH a0, a1
+        MERGE (a0)-[c0:COLLAB_WITH]->(a1)
+            ON CREATE SET c0.count = 1
+            ON MATCH SET c0.count = c0.count + 1
+        MERGE (a1)-[c1:COLLAB_WITH]->(a0)
+            ON CREATE SET c1.count = 1
+            ON MATCH SET c1.count = c1.count + 1
+        ;
+    """
+    execute_query(driver, query, True)
+
+
 def main(driver: Driver) -> None:
     # First let's import our artist database
     import_artists(driver)
 
     # Now the releases
     import_releases(driver)
+
+    # Create the collaboration links
+    add_coll_links(driver)
 
 
 if __name__ == '__main__':
