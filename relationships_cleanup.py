@@ -18,6 +18,10 @@ if __name__ == '__main__':
     relationships.drop_duplicates(subset=['id0_sorted', 'id1_sorted', 'relationship_type'], inplace=True)
     relationships.drop(columns=['id0_sorted', 'id1_sorted'], inplace=True)
 
+    # Removing unnecessary rows
+    mask = relationships["id0"] == relationships["id1"]
+    relationships = relationships[~mask]
+
     # Export
     print("Exporting...")
     relationships.to_csv("relationships_clean.csv", index=False)
