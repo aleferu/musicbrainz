@@ -16,7 +16,7 @@ load_dotenv()
 def execute_query(driver: Driver, query: LiteralString | str, print_records: bool = False):
     with driver.session() as session:
         print(f"Querying '{query}'...")
-        result = session.run(query)
+        result = session.run(query)  # type: ignore
         if print_records:
             print("Printing records:")
             for record in result:
