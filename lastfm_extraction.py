@@ -74,11 +74,11 @@ def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[
     if "error" in info:
         error_code = info["error"]
         if error_code == 6:
-            logging.info(f"An error with code 6 was found. Seems like {artist_name} was not found in the LastFM's API.")
+            logging.error(f"An error with code 6 was found. Seems like {artist_name} was not found in the LastFM's API.")
             return True, None
         error_message = info["message"]
-        logging.info(f"An error with code {error_code} happened when trying to get info for {artist_name}.")
-        logging.info(f"Error message: {error_message}.")
+        logging.error(f"An error with code {error_code} happened when trying to get info for {artist_name}.")
+        logging.error(f"Error message: {error_message}.")
         return False, None
     artist_info = info["artist"]
     similar = requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&api_key={last_fm_api_key}&format=json").json()["similarartists"]["artist"]
@@ -190,7 +190,7 @@ def main(driver: Driver, last_fm_api_key: str):
 
             # NOT IN API -> no data could be extracted
             else:
-                logging.info(f"  Seems like we couldn't extract info for artist {main_id}...")
+                logging.error(f"  Seems like we couldn't extract info for artist {main_id}...")
                 query = f"MATCH (a:Artist {{main_id:  \"{main_id}\"}}) SET a.last_fm_call = true, a.in_last_fm = false"
                 execute_query(driver, query)
 
