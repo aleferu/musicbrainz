@@ -15,6 +15,10 @@ def get_artist_id_from_name(driver: Driver, name: str) -> str | None:
     name = name.replace("!", "")
     name = name.replace("/", "")
     name = name.replace("\"", "")
+    name = name.replace("[", "")
+    name = name.replace("]", "")
+    name = name.replace("(", "")
+    name = name.replace(")", "")
 
     query = f"""
         WITH \"{name}\" AS input_name
