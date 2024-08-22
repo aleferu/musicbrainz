@@ -10,11 +10,66 @@ import os
 load_dotenv()
 
 
+def get_artist_id_from_name(driver: Driver, name: str) -> str | None:
+    # Error avoidance
+    name = name.replace("!", "")
+    name = name.replace("/", "")
+    name = name.replace("\"", "")
+
+    query = f"""
+        WITH \"{name}\" AS input_name
+        CALL db.index.fulltext.queryNodes('artist_names_index', input_name) YIELD node, score
+        RETURN node.main_id
+        ORDER BY score DESC
+        LIMIT 1;
+    """
+    result = execute_query_return(driver, query)
+
+    if len(result) == 0:
+        return None
+
+    return result[0]["node.main_id"]
+
+
+def update_artist(driver: Driver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
+    # Update links
+    for name, match in similar_artists.items():
+        other_id = get_artist_id_from_name(driver, name)
+
+        if other_id is None:
+            continue
+
+        query = f"""
+            MATCH (a0:Artist {{main_id:  \"{main_id}\"}}), (a1:Artist {{main_id:  \"{other_id}\"}})
+            MERGE (a0)-[l0:LAST_FM_MATCH]->(a1)
+                ON CREATE SET l0.weight = {match}
+                ON MATCH SET l0.weight = CASE WHEN l0.weight < {match} THEN {match} ELSE l0.weight END
+            MERGE (a1)-[l1:LAST_FM_MATCH]->(a0)
+                ON CREATE SET l1.weight = {match}
+                ON MATCH SET l1.weight = CASE WHEN l1.weight < {match} THEN {match} ELSE l1.weight END
+            ;
+        """
+        execute_query(driver, query)
+
+    # Update individual stats
+    query = f"""
+        MATCH (a:Artist {{main_id:  \"{main_id}\"}})
+        SET
+            a.listeners = {listeners},
+            a.playcount = {playcount},
+            a.tags = {tags},
+            a.last_fm_call = true,
+            a.in_last_fm = true
+        ;
+    """
+    execute_query(driver, query)
+
+
 def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
     info = requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&api_key={last_fm_api_key}&format=json").json()
     if "error" in info:
         error_code = info["error"]
-        if error_code == "6":
+        if error_code == 6:
             logging.info(f"An error with code 6 was found. Seems like {artist_name} was not found in the LastFM's API.")
             return True, None
         error_message = info["message"]
@@ -28,7 +83,7 @@ def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[
 
 
 def get_artists_from_db(driver: Driver, artist_count: int) -> list[dict[str, Any]]:
-    query = f"MATCH (n: Artist {{last_fm_call: false}}) RETURN n LIMIT {artist_count}"
+    query = f"MATCH (n: Artist {{last_fm_call: false}}) RETURN n LIMIT {artist_count};"
     return [r["n"] for r in execute_query_return(driver, query)]
 
 
@@ -121,15 +176,18 @@ def main(driver: Driver, last_fm_api_key: str):
                         float(similar_artist["match"]),
                         similar_artists.get(similar_artist_name, 0)
                     )
+                    similar_artists[similar_artist_name] = match
                     logging.info(f"    Found similar artist: '{similar_artist_name}'. Match: '{match}'")
 
             if in_db:
-                pass  # TODO
+                tags = list(tags)
+                logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tags)} tags...")
+                update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
 
             # NOT IN API -> no data could be extracted
             else:
                 logging.info(f"  Seems like we couldn't extract info for artist {main_id}...")
-                query = f"MATCH (n:Artist {{main_id:  \"{main_id}\"}}) SET n.last_fm_call = true, n.in_last_fm = false"
+                query = f"MATCH (a:Artist {{main_id:  \"{main_id}\"}}) SET a.last_fm_call = true, a.in_last_fm = false"
                 execute_query(driver, query)
 
 
