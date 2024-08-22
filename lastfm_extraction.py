@@ -30,11 +30,11 @@ def get_artists_from_db(driver: Driver, artist_count: int) -> list[dict[str, Any
     return [r["n"] for r in execute_query_return(driver, query)]
 
 
-def execute_query_return(driver: Driver, query: LiteralString | str) -> list[Record]:
+def execute_query_return(driver: Driver, query: LiteralString | str) -> list[dict[str, Any]]:
     with driver.session() as session:
         logging.info(f"Querying '{query}'...")
         result = session.run(query)   # type: ignore
-        return [r for r in result]
+        return result.data()
 
 
 def execute_query(driver:Driver, query: LiteralString | str) -> None:
@@ -73,7 +73,7 @@ def main(driver: Driver, last_fm_api_key: str):
                     #     I should not query for too many artists anyways (battery life and/or API's rate limit)
                     if artist_info is None:
                         continue
-                    
+
                     # Do I just import everything or the "best" found account?
                     #     I'll just sum everything up, what could go wrong?
 
