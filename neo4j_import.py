@@ -40,6 +40,9 @@ def import_artists(driver: Driver):
     # If stuck: google how to use apoc for loading JSON files in Neo4j
     # It's really simple, moving a .jar file and a few settings
     # You also need to "cp artists.jsonl /var/lib/neo4j/import/artists.jsonl"
+    query = "CREATE FULLTEXT INDEX artist_names_index IF NOT EXISTS FOR (a:Artist) ON EACH [a.known_names];"
+    execute_query(driver, query)
+
     query = "CREATE INDEX IF NOT EXISTS FOR (a:Artist) ON (a.main_id);"
     execute_query(driver, query)
 
