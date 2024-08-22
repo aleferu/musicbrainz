@@ -39,7 +39,7 @@ def execute_query_return(driver: Driver, query: LiteralString | str) -> list[dic
         return result.data()
 
 
-def execute_query(driver:Driver, query: LiteralString | str) -> None:
+def execute_query(driver: Driver, query: LiteralString | str) -> None:
     with driver.session() as session:
         logging.info(f"Querying '{query}'...")
         _ = session.run(query)   # type: ignore
@@ -78,6 +78,7 @@ def main(driver: Driver, last_fm_api_key: str):
             listeners = 0
             playcount = 0
             similar_artists: dict[str, float] = dict()
+            tags: set[str] = set()
 
             for name in names:
                 # For each name get the data from LastFM
@@ -89,12 +90,16 @@ def main(driver: Driver, last_fm_api_key: str):
                 #     I should not query for too many artists anyways (battery life and/or API's rate limit)
                 #     Then I'll see how to handle that error
                 if not success:
+                    logging.critical("UNEXPECTED ERROR!")
                     exit(1)
 
                 # Not found in the API
                 if success and artist_info is None:
                     in_db = in_db or False
                     continue
+
+                # Found!
+                in_db = True
 
                 # We should be good to go to extract the artist's info
                 if (stats := artist_info.get("stats", False)):
@@ -103,7 +108,11 @@ def main(driver: Driver, last_fm_api_key: str):
                     logging.info(f"    Listeners: {listeners}")
                     logging.info(f"    Playcount: {playcount}")
 
-                    # TODO: update listeners and playcount
+                if (artist_tags := artist_info.get("tags", False)):
+                    if (artist_tags := artist_tags.get("tag", False)):
+                        tag_list = list(tag["name"] for tag in artist_tags)
+                        tags.update(tag_list)
+                        logging.info(f"    Found tags: {tag_list}")
 
                 for similar_artist in artist_info.get("similar", []):
                     similar_artist: dict[str, Any]
@@ -114,7 +123,14 @@ def main(driver: Driver, last_fm_api_key: str):
                     )
                     logging.info(f"    Found similar artist: '{similar_artist_name}'. Match: '{match}'")
 
-                # TODO: set last_fm_call in db
+            if in_db:
+                pass  # TODO
+
+            # NOT IN API -> no data could be extracted
+            else:
+                logging.info(f"  Seems like we couldn't extract info for artist {main_id}...")
+                query = f"MATCH (n:Artist {{main_id:  \"{main_id}\"}}) SET n.last_fm_call = true, n.in_last_fm = false"
+                execute_query(driver, query)
 
 
 if __name__ == '__main__':
