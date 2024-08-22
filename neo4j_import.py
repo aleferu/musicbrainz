@@ -49,7 +49,7 @@ def import_artists(driver: Driver):
     query = """
         CALL apoc.periodic.iterate(
             "CALL apoc.load.json('file:///artists.jsonl') YIELD value",
-            "MERGE (n:Artist {
+            "MERGE (a:Artist {
                 main_id: value.main_id,
                 known_ids: value.known_ids,
                 known_names: value.known_names,
