@@ -26,7 +26,7 @@ They must be executed in the following order (the subitems are the files generat
     - `releases_no_va_merged_id.csv`
 - `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 - `tags.ipynb`: Extracts MB's tags into a useful format for later use.
-    - `mb_tags.json`
+    - `tags.csv`
 - `neo4j_import.py`: Imports our current dataset into a [Neo4j database](https://neo4j.com/).
     - From now on the idea is to never manage several files anymore and keep it in this Neo4j DB.
 
