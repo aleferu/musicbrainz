@@ -22,9 +22,9 @@ They must be executed in the following order (the subitems are the files generat
     - `releases_no_va_merged.csv`
 - `relationships_cleanup.py`: Generates a version of the relationships CSV without duplicates.
     - `relationships_clean.csv`
-- `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 - `add_id_final_releases_csv.py`: Generates an id column to `releases_no_va_merged.csv` and modifies the data so that Neo4j won't complain.
     - `releases_no_va_merged_id.csv`
+- `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 - `tags.ipynb`: Extracts MB's tags into a useful format for later use.
     - `mb_tags.json`
 - `neo4j_import.py`: Imports our current dataset into a [Neo4j database](https://neo4j.com/).
