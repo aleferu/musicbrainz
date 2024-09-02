@@ -34,6 +34,20 @@ def remove_db(driver: Driver):
     execute_query(driver, query, True)
 
 
+def import_mb_tags(driver: Driver):
+    query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.id);"
+    execute_query(driver, query)
+
+    query = """
+        CALL apoc.periodic.iterate(
+            "LOAD CSV WITH HEADERS FROM 'file:///tags.csv' AS row RETURN row",
+            "MERGE (t:MBTag {id: row.id, name: row.name})",
+            {batchSize: 10000, parallel: true, concurrency: 8}
+        );
+    """
+    execute_query(driver, query, True)
+
+
 def import_artists(driver: Driver):
     # dbms.security.procedures.unrestricted=apoc.*
     # dbms.security.procedures.allowlist=apoc.*
@@ -53,13 +67,31 @@ def import_artists(driver: Driver):
                 main_id: value.main_id,
                 known_ids: value.known_ids,
                 known_names: value.known_names,
-                tags: [],
                 listeners: 0,
                 playcount: 0,
                 last_fm_call: false,
-                in_last_fm: false,
+                in_last_fm: false
             })",
             {batchSize: 10000, parallel: true, concurrency: 8}
+        );
+    """
+    execute_query(driver, query, True)
+
+
+def create_artist_mbtag_links(driver: Driver):
+    query = """
+        CALL apoc.periodic.iterate(
+            "LOAD CSV WITH HEADERS FROM 'file:///artist_tags.csv' AS row RETURN row",
+            "
+                WITH
+                    row.artist AS artist_id,
+                    SPLIT(row.tags, ', ') AS tag_ids
+                UNWIND tag_ids AS tag_id
+                MATCH (a:Artist {main_id: artist_id}), (t:MBTag {id: tag_id})
+                MERGE (a)-[:HAS_TAG]->(t)
+                MERGE (t)-[:TAGS]->(a)
+            ",
+            {batchSize: 10000, parallel: false}
         );
     """
     execute_query(driver, query, True)
@@ -73,22 +105,38 @@ def import_releases(driver: Driver):
         CALL apoc.periodic.iterate(
             "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id.csv' AS row RETURN row",
             "
-                WITH
-                    [row.a0_id, row.a1_id, row.a2_id, row.a3_id, row.a4_id] AS ids,
-                    row
-                UNWIND ids AS artist_id
-                WITH
-                    artist_id,
-                    row
-                MATCH (a:Artist {main_id: artist_id})
-                WITH
-                    a,
-                    row,
-                    date(row.date) AS coll_date
                 MERGE (r:Release {id: row.id})
-                ON CREATE SET r.name = row.name, r.date = coll_date, r.artist_count = row.artist_count
+                ON CREATE SET
+                    r.name = row.name,
+                    r.date = DATE(row.date),
+                    r.artist_count = row.artist_count,
+                    r.listeners = 0,
+                    r.playcount = 0,
+                    r.last_fm_call = false,
+                    r.in_last_fm = false
+                WITH
+                    [row.a0_id, row.a1_id, row.a2_id, row.a3_id, row.a4_id] AS artist_ids,
+                    r
+                UNWIND artist_ids AS artist_id
+                MATCH (a:Artist {main_id: artist_id})
                 MERGE (a)-[:WORKED_IN]->(r)
                 MERGE (r)-[:WORKED_BY]->(a)
+            ",
+            {batchSize: 50000}
+        );
+    """
+    execute_query(driver, query, True)
+
+    query = """
+        CALL apoc.periodic.iterate(
+            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id.csv' AS row RETURN row",
+            "
+                MATCH (r:Release {id: row.id})
+                WITH r, SPLIT(r.tags, ', ') AS release_tags
+                UNWIND release_tags AS release_tag
+                MATCH (t:MBTag {id: release_tag})
+                MERGE (r)-[:HAS_TAG]->(t)
+                MERGE (t)-[:TAGS]->(r)
             ",
             {batchSize: 50000}
         );
@@ -153,8 +201,14 @@ def main(driver: Driver) -> None:
     # Remove last iteration of the db
     remove_db(driver)
 
-    # First let's import our artist database
+    # First let's import the tags obtained from MB
+    import_mb_tags(driver)
+
+    # Then, let's import our artist database
     import_artists(driver)
+
+    # With their tags
+    create_artist_mbtag_links(driver)
 
     # Now the releases
     import_releases(driver)
