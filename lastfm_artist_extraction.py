@@ -2,11 +2,12 @@
 
 
 import logging
-import requests
+import requests_async as requests
 from typing import Any, LiteralString
 from neo4j import Driver, GraphDatabase, basic_auth
 from dotenv import load_dotenv
 import os
+import asyncio
 load_dotenv()
 
 
@@ -69,8 +70,9 @@ def update_artist(driver: Driver, main_id: str, listeners: int, playcount: int, 
     execute_query(driver, query)
 
 
-def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
-    info = requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&api_key={last_fm_api_key}&format=json").json()
+async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
+    info = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    info = info.json()
     if "error" in info:
         error_code = info["error"]
         if error_code == 6:
@@ -81,7 +83,8 @@ def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[
         logging.error(f"Error message: {error_message}.")
         return False, None
     artist_info = info["artist"]
-    similar = requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&api_key={last_fm_api_key}&format=json").json()["similarartists"]["artist"]
+    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    similar = similar.json()["similarartists"]["artist"]
     artist_info["similar"] = similar
     return True, artist_info
 
@@ -104,7 +107,75 @@ def execute_query(driver: Driver, query: LiteralString | str) -> None:
         _ = session.run(query)   # type: ignore
 
 
-def main(driver: Driver, last_fm_api_key: str):
+async def process_artist(driver: Driver, artist: dict[str, Any], last_fm_api_key: str):
+    main_id = artist["main_id"]
+    names = artist["known_names"]
+    logging.info(f"FOUND ARTIST WITH main_id: '{main_id}'")
+    logging.info("Looping through its names...")
+
+    in_db = False
+    listeners = 0
+    playcount = 0
+    similar_artists: dict[str, float] = dict()
+    tags: set[str] = set()
+
+    for name in names:
+        # For each name get the data from LastFM
+        logging.info(f"  Name: {name}")
+        success, artist_info = await get_artist_info(name, last_fm_api_key)
+
+        # What happens if fail?
+        #     I'll just print what happened and check it out later,
+        #     I should not query for too many artists anyways (battery life and/or API's rate limit)
+        #     Then I'll see how to handle that error
+        if not success:
+            logging.critical("UNEXPECTED ERROR!")
+            exit(1)
+
+        # Not found in the API
+        if success and artist_info is None:
+            in_db = in_db or False
+            continue
+
+        # Found!
+        in_db = True
+
+        # We should be good to go to extract the artist's info
+        if (stats := artist_info.get("stats", False)):
+            listeners += int(stats["listeners"])
+            playcount += int(stats["playcount"])
+            logging.info(f"    Listeners: {listeners}")
+            logging.info(f"    Playcount: {playcount}")
+
+        if (artist_tags := artist_info.get("tags", False)):
+            if (artist_tags := artist_tags.get("tag", False)):
+                tag_list = list(tag["name"] for tag in artist_tags)
+                tags.update(tag_list)
+                logging.info(f"    Found tags: {tag_list}")
+
+        for similar_artist in artist_info.get("similar", []):
+            similar_artist: dict[str, Any]
+            similar_artist_name = similar_artist["name"]
+            match = max(
+                float(similar_artist["match"]),
+                similar_artists.get(similar_artist_name, 0)
+            )
+            similar_artists[similar_artist_name] = match
+            logging.info(f"    Found similar artist: '{similar_artist_name}'. Match: '{match}'")
+
+    if in_db:
+        tags = list(tags)
+        logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tags)} tags...")
+        update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
+
+    # NOT IN API -> no data could be extracted
+    else:
+        logging.error(f"  Seems like we couldn't extract info for artist {main_id}...")
+        query = f"MATCH (a:Artist {{main_id:  \"{main_id}\"}}) SET a.last_fm_call = true, a.in_last_fm = false"
+        execute_query(driver, query)
+
+
+async def main(driver: Driver, last_fm_api_key: str):
     # Ctrl + c for exit
     # Or artist_count as 0
     while True:
@@ -126,73 +197,8 @@ def main(driver: Driver, last_fm_api_key: str):
             logging.info("Exiting...")
             return
 
-        # For each node get the list of names
-        for artist in get_artists_from_db(driver, artist_count):
-            main_id = artist["main_id"]
-            names = artist["known_names"]
-            logging.info(f"FOUND ARTIST WITH main_id: '{main_id}'")
-            logging.info("Looping through its names...")
-
-            in_db = False
-            listeners = 0
-            playcount = 0
-            similar_artists: dict[str, float] = dict()
-            tags: set[str] = set()
-
-            for name in names:
-                # For each name get the data from LastFM
-                logging.info(f"  Name: {name}")
-                success, artist_info = get_artist_info(name, last_fm_api_key)
-
-                # What happens if fail?
-                #     I'll just print what happened and check it out later,
-                #     I should not query for too many artists anyways (battery life and/or API's rate limit)
-                #     Then I'll see how to handle that error
-                if not success:
-                    logging.critical("UNEXPECTED ERROR!")
-                    exit(1)
-
-                # Not found in the API
-                if success and artist_info is None:
-                    in_db = in_db or False
-                    continue
-
-                # Found!
-                in_db = True
-
-                # We should be good to go to extract the artist's info
-                if (stats := artist_info.get("stats", False)):
-                    listeners += int(stats["listeners"])
-                    playcount += int(stats["playcount"])
-                    logging.info(f"    Listeners: {listeners}")
-                    logging.info(f"    Playcount: {playcount}")
-
-                if (artist_tags := artist_info.get("tags", False)):
-                    if (artist_tags := artist_tags.get("tag", False)):
-                        tag_list = list(tag["name"] for tag in artist_tags)
-                        tags.update(tag_list)
-                        logging.info(f"    Found tags: {tag_list}")
-
-                for similar_artist in artist_info.get("similar", []):
-                    similar_artist: dict[str, Any]
-                    similar_artist_name = similar_artist["name"]
-                    match = max(
-                        float(similar_artist["match"]),
-                        similar_artists.get(similar_artist_name, 0)
-                    )
-                    similar_artists[similar_artist_name] = match
-                    logging.info(f"    Found similar artist: '{similar_artist_name}'. Match: '{match}'")
-
-            if in_db:
-                tags = list(tags)
-                logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tags)} tags...")
-                update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
-
-            # NOT IN API -> no data could be extracted
-            else:
-                logging.error(f"  Seems like we couldn't extract info for artist {main_id}...")
-                query = f"MATCH (a:Artist {{main_id:  \"{main_id}\"}}) SET a.last_fm_call = true, a.in_last_fm = false"
-                execute_query(driver, query)
+        # Process each artist
+        _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key) for artist in get_artists_from_db(driver, artist_count)])
 
 
 if __name__ == '__main__':
@@ -221,7 +227,7 @@ if __name__ == '__main__':
     # db connection
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    main(driver, LAST_FM_API_KEY)
+    _ = asyncio.run(main(driver, LAST_FM_API_KEY))
 
     # cleanup
     driver.close()
