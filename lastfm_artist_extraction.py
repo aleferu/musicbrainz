@@ -139,6 +139,8 @@ async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_ap
             in_db = in_db or False
             continue
 
+        assert artist_info is not None, "LSP was complaining"
+
         # Found!
         in_db = True
 
@@ -166,9 +168,9 @@ async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_ap
             logging.info(f"    Found similar artist: '{similar_artist_name}'. Match: '{match}'")
 
     if in_db:
-        tags = list(tags)
-        logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tags)} tags...")
-        _ = await update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
+        tag_list = list(tags)
+        logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tag_list)} tags...")
+        _ = await update_artist(driver, main_id, listeners, playcount, similar_artists, tag_list)
 
     # NOT IN API -> no data could be extracted
     else:
