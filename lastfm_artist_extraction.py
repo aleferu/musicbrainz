@@ -4,14 +4,14 @@
 import logging
 import requests_async as requests
 from typing import Any, LiteralString
-from neo4j import Driver, GraphDatabase, basic_auth
+from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
 from dotenv import load_dotenv
 import os
 import asyncio
 load_dotenv()
 
 
-def get_artist_id_from_name(driver: Driver, name: str) -> str | None:
+async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
     # Error avoidance
     name = name.replace("!", "")
     name = name.replace("/", "")
@@ -29,7 +29,7 @@ def get_artist_id_from_name(driver: Driver, name: str) -> str | None:
         ORDER BY score DESC
         LIMIT 1;
     """
-    result = execute_query_return(driver, query)
+    result = await execute_query_return(driver, query)
 
     if len(result) == 0:
         return None
@@ -37,7 +37,7 @@ def get_artist_id_from_name(driver: Driver, name: str) -> str | None:
     return result[0]["node.main_id"]
 
 
-def update_artist(driver: Driver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
+async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
     # Update links
     for name, match in similar_artists.items():
         other_id = get_artist_id_from_name(driver, name)
@@ -55,7 +55,7 @@ def update_artist(driver: Driver, main_id: str, listeners: int, playcount: int, 
                 ON MATCH SET l1.weight = CASE WHEN l1.weight < {match} THEN {match} ELSE l1.weight END
             ;
         """
-        execute_query(driver, query)
+        _ = await execute_query(driver, query)
 
     # Update individual stats
     query = f"""
@@ -68,7 +68,7 @@ def update_artist(driver: Driver, main_id: str, listeners: int, playcount: int, 
             a.in_last_fm = true
         ;
     """
-    execute_query(driver, query)
+    _ = await execute_query(driver, query)
 
 
 async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
@@ -90,25 +90,26 @@ async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool,
     return True, artist_info
 
 
-def get_artists_from_db(driver: Driver, artist_count: int) -> list[dict[str, Any]]:
+async def get_artists_from_db(driver: AsyncDriver, artist_count: int) -> list[dict[str, Any]]:
     query = f"MATCH (n: Artist {{last_fm_call: false}}) RETURN n LIMIT {artist_count};"
-    return [r["n"] for r in execute_query_return(driver, query)]
+    query_result = await execute_query_return(driver, query)
+    return [r["n"] for r in query_result]
 
 
-def execute_query_return(driver: Driver, query: LiteralString | str) -> list[dict[str, Any]]:
-    with driver.session() as session:
+async def execute_query_return(driver: AsyncDriver, query: LiteralString | str) -> list[dict[str, Any]]:
+    async with driver.session() as session:
         logging.info(f"Querying '{query}'...")
-        result = session.run(query)   # type: ignore
-        return result.data()
+        result = await session.run(query)  # type: ignore
+        return await result.data()
 
 
-def execute_query(driver: Driver, query: LiteralString | str) -> None:
-    with driver.session() as session:
+async def execute_query(driver: AsyncDriver, query: LiteralString | str) -> None:
+    async with driver.session() as session:
         logging.info(f"Querying '{query}'...")
-        _ = session.run(query)   # type: ignore
+        _ = await session.run(query)   # type: ignore
 
 
-async def process_artist(driver: Driver, artist: dict[str, Any], last_fm_api_key: str):
+async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_api_key: str):
     main_id = artist["main_id"]
     names = artist["known_names"]
     logging.info(f"FOUND ARTIST WITH main_id: '{main_id}'")
@@ -167,16 +168,16 @@ async def process_artist(driver: Driver, artist: dict[str, Any], last_fm_api_key
     if in_db:
         tags = list(tags)
         logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tags)} tags...")
-        update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
+        _ = await update_artist(driver, main_id, listeners, playcount, similar_artists, tags)
 
     # NOT IN API -> no data could be extracted
     else:
         logging.error(f"  Seems like we couldn't extract info for artist {main_id}...")
         query = f"MATCH (a:Artist {{main_id:  \"{main_id}\"}}) SET a.last_fm_call = true, a.in_last_fm = false"
-        execute_query(driver, query)
+        _ = await execute_query(driver, query)
 
 
-async def main(driver: Driver, last_fm_api_key: str):
+async def main(driver: AsyncDriver, last_fm_api_key: str):
     # Ctrl + c for exit
     # Or artist_count as 0
     while True:
@@ -199,7 +200,7 @@ async def main(driver: Driver, last_fm_api_key: str):
             return
 
         # Process each artist
-        _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key) for artist in get_artists_from_db(driver, artist_count)])
+        _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key) for artist in await get_artists_from_db(driver, artist_count)])
 
 
 if __name__ == '__main__':
@@ -226,9 +227,9 @@ if __name__ == '__main__':
         "INVALID .env"
 
     # db connection
-    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
+    driver = AsyncGraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
     _ = asyncio.run(main(driver, LAST_FM_API_KEY))
 
     # cleanup
-    driver.close()
+    _ = asyncio.run(driver.close())
