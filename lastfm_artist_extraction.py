@@ -40,7 +40,7 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
     # Update links
     for name, match in similar_artists.items():
-        other_id = get_artist_id_from_name(driver, name)
+        other_id = await get_artist_id_from_name(driver, name)
 
         if other_id is None:
             continue
