@@ -35,6 +35,10 @@ def remove_db(driver: Driver):
 
 
 def import_mb_tags(driver: Driver):
+    # I will also create the index for LastFM's tags (LFMTag)
+    query = "CREATE INDEX IF NOT EXISTS FOR (t:LFMTag) ON (t.id);"
+    execute_query(driver, query)
+
     query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.id);"
     execute_query(driver, query)
 
