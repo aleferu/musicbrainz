@@ -38,20 +38,17 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
 
 
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
-    # For each tag:
-    #   Create the Tag node, we can maybe create an id with randomUUID (need to explore)
-    #   Create a link between the artist and the tag (and viceversa for centrality, future removal)
-    #
-    # I'm thinking matching the artist and the unwind the list of tags, then doing the thing
-    #
-    # MATCH (a:Artist {{main_id: \"{main_id\"}}})
-    # WITH a, SPLIT({{tags}}) AS tags
-    # UNWIND tags AS tag
-    # MERGE (t:LFMTag {id: randomUUID(), name: tag})
-    # MERGE (t)-[:TAGS]->(a)
-    # MERGE (a)-[:HAS_TAG]->(t)
-    #
-    # PENDING TESTING
+    # Update tags
+    # Todo: THIS IS WRONG! WE NEED TO CHECK IF THE NAME ALREADY EXISTS!
+    # query = f"""
+    #     MATCH (a:Artist {{main_id: \"{main_id}\"}})
+    #     WITH a, SPLIT(\"{", ".join(tags)}\", ', ') AS tags
+    #     UNWIND tags AS tag
+    #     MERGE (t:LFMTag {{id: randomUUID(), name: tag}})
+    #     MERGE (t)-[:TAGS]->(a)
+    #     MERGE (a)-[:HAS_TAG]->(t)
+    # """
+    # _ = await execute_query(driver, query)
 
     # Update links
     for name, match in similar_artists.items():
