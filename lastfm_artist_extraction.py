@@ -38,6 +38,21 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
 
 
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
+    # For each tag:
+    #   Create the Tag node, we can maybe create an id with randomUUID (need to explore)
+    #   Create a link between the artist and the tag (and viceversa for centrality, future removal)
+    #
+    # I'm thinking matching the artist and the unwind the list of tags, then doing the thing
+    #
+    # MATCH (a:Artist {{main_id: \"{main_id\"}}})
+    # WITH a, SPLIT({{tags}}) AS tags
+    # UNWIND tags AS tag
+    # MERGE (t:LFMTag {id: randomUUID(), name: tag})
+    # MERGE (t)-[:TAGS]->(a)
+    # MERGE (a)-[:HAS_TAG]->(t)
+    #
+    # PENDING TESTING
+
     # Update links
     for name, match in similar_artists.items():
         other_id = await get_artist_id_from_name(driver, name)
@@ -46,7 +61,7 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
             continue
 
         query = f"""
-            MATCH (a0:Artist {{main_id:  \"{main_id}\"}}), (a1:Artist {{main_id:  \"{other_id}\"}})
+            MATCH (a0:Artist {{main_id: \"{main_id}\"}}), (a1:Artist {{main_id: \"{other_id}\"}})
             MERGE (a0)-[l0:LAST_FM_MATCH]->(a1)
                 ON CREATE SET l0.weight = {match}
                 ON MATCH SET l0.weight = CASE WHEN l0.weight < {match} THEN {match} ELSE l0.weight END
@@ -63,7 +78,6 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
         SET
             a.listeners = {listeners},
             a.playcount = {playcount},
-            a.tags = {tags},
             a.last_fm_call = true,
             a.in_last_fm = true
         ;
