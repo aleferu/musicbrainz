@@ -8,7 +8,6 @@ from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
 from dotenv import load_dotenv
 import os
 import asyncio
-load_dotenv()
 
 
 async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
@@ -25,6 +24,7 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
     query = f"""
         WITH \"{name}\" AS input_name
         CALL db.index.fulltext.queryNodes('artist_names_index', input_name) YIELD node, score
+        WHERE score > 1
         RETURN node.main_id
         ORDER BY score DESC
         LIMIT 1;
@@ -37,18 +37,42 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
     return result[0]["node.main_id"]
 
 
+async def get_tag_id_from_name(driver: AsyncDriver, name: str) -> str | None:
+    query = f"""
+        WITH \"{name}\" AS input_name
+        CALL db.index.fulltext.queryNodes('last_fm_tag_names_index', input_name) YIELD node, score
+        WHERE score > 1
+        RETURN node.name, node.id
+        ORDER BY score DESC
+        LIMIT 1;
+    """
+    result = await execute_query_return(driver, query)
+
+    if len(result) == 0:
+        return None
+
+    return result[0]["node.id"]
+
+
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
     # Update tags
-    # Todo: THIS IS WRONG! WE NEED TO CHECK IF THE NAME ALREADY EXISTS!
-    # query = f"""
-    #     MATCH (a:Artist {{main_id: \"{main_id}\"}})
-    #     WITH a, SPLIT(\"{", ".join(tags)}\", ', ') AS tags
-    #     UNWIND tags AS tag
-    #     MERGE (t:LFMTag {{id: randomUUID(), name: tag}})
-    #     MERGE (t)-[:TAGS]->(a)
-    #     MERGE (a)-[:HAS_TAG]->(t)
-    # """
-    # _ = await execute_query(driver, query)
+    for tag_name in tags:
+        tag_id = await get_tag_id_from_name(driver, tag_name)
+
+        if tag_id is None:
+            query = f"""
+                MATCH (a:Artist {{main_id: \"{main_id}\"}})
+                MERGE (t:LFMTag {{id: randomUUID(), name: \"{tag_name}\"}})
+                MERGE (t)-[:TAGS]->(a)
+                MERGE (a)-[:HAS_TAG]->(t)
+            """
+        else:
+            query = f"""
+                MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:LFMTag {{id: \"{tag_id}\", name: \"{tag_name}\"}})
+                MERGE (t)-[:TAGS]->(a)
+                MERGE (a)-[:HAS_TAG]->(t)
+            """
+        _ = await execute_query(driver, query)
 
     # Update links
     for name, match in similar_artists.items():
@@ -206,7 +230,9 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
             logging.info(e)
             continue
         except Exception as e:
-            raise e
+            logging.info("An error has occured.")
+            logging.info(e)
+            return
 
         if artist_count == 0:
             logging.info("Exiting...")
@@ -217,6 +243,8 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
 
 
 if __name__ == '__main__':
+    load_dotenv()
+
     # logging setup
     logging.basicConfig(
         level=logging.INFO,
