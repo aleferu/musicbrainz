@@ -38,8 +38,14 @@ def import_mb_tags(driver: Driver):
     # I will also create the index for LastFM's tags (LFMTag)
     query = "CREATE INDEX IF NOT EXISTS FOR (t:LFMTag) ON (t.id);"
     execute_query(driver, query)
+    # An index for the name will also be required.
+    query = "CREATE INDEX IF NOT EXISTS FOR (t:LFMTag) ON (t.name)"
+    execute_query(driver, query)
 
+    # Now with MB's tags
     query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.id);"
+    execute_query(driver, query)
+    query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.name);"
     execute_query(driver, query)
 
     query = """
