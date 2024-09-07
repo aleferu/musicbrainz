@@ -107,7 +107,16 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
 
 
 async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
-    info = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    request_url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json"
+    info = await requests.get(request_url)
+
+    if info.status_code != 200:
+        logging.info(f"FOUND ERROR CODE: {info.status_code}")
+        logging.info(request_url)
+        logging.info("Request text in next line:")
+        logging.info(info.text)
+        exit()
+
     info = info.json()
     if "error" in info:
         error_code = info["error"]
