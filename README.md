@@ -74,7 +74,7 @@ dbms.security.procedures.allowlist=apoc.*
 dbms.memory.transaction.total.max=7g
 ```
 
-The just `sudo neo4j start/stop/restart...` to run.
+Then just `sudo neo4j start/stop/restart...` to run.
 
 ## LICENSE
 
