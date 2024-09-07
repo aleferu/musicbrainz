@@ -107,7 +107,7 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
 
 
 async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
-    info = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    info = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     info = info.json()
     if "error" in info:
         error_code = info["error"]
@@ -119,7 +119,7 @@ async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool,
         logging.error(f"Error message: {error_message}.")
         return False, None
     artist_info = info["artist"]
-    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     similar = similar.json()["similarartists"]["artist"]
     artist_info["similar"] = similar
     return True, artist_info
