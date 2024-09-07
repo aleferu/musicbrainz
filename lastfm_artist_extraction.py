@@ -5,6 +5,7 @@ import logging
 import requests_async as requests
 from typing import Any, LiteralString
 from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
+import neo4j.exceptions as neo4j_exceptions
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -20,6 +21,15 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
     name = name.replace("(", "")
     name = name.replace(")", "")
     name = name.replace(":", "")
+    name = name.replace("₩", "")
+    name = name.replace("-", "")
+    name = name.replace("~", "")
+    name = name.replace("{", "")
+    name = name.replace("}", "")
+    name = name.replace("^", "")
+
+    if len(name.strip()) == 0:
+        return None
 
     query = f"""
         WITH \"{name}\" AS input_name
@@ -29,7 +39,12 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
         ORDER BY score DESC
         LIMIT 1;
     """
-    result = await execute_query_return(driver, query)
+    try:
+        result = await execute_query_return(driver, query)
+    except neo4j_exceptions.ClientError as e:
+        logging.critical(f"ERROR: {e}")
+        logging.critical(f"Name: {name}")
+        exit()
 
     if len(result) == 0:
         return None
