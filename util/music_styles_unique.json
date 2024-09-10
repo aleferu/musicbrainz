@@ -1,0 +1,12 @@
+{
+	"pop": ["pop rock", "pop", "british", "j-pop", "k-pop", "mandopop", "cantopop"],
+	"hip-hop": ["hip-hop", "funk", "trap", "rap"],
+	"rock": ["rock", "rockabilly", "metal", "punk", "metalcore", "hardcore", "j-rock", "grunge"],
+	"electronic": ["trance", "chill", "dance", "edm", "house", "dubstep", "dancehall", "electro", "techno", "electronic", "club"],
+	"latin": ["latin", "reggaeton", "spanish", "pagode", "cumbia", "salsa", "latino", "sertanejo", "mpb"],
+	"indie": ["anime", "indie", "alternative", "emo"],
+	"classical and ost": ["soundtracks", "classical", "piano", "ambient"],
+	"folk/traditional": ["folk", "country", "singer-songwriter", "german", "corrido", "forro", "swedish", "turkish", "french", "malay", "ranchera"],
+	"rythm and blues": ["blues", "disco", "gospel", "ska", "groove", "r-n-b", "jazz", "soul", "reggae"],
+	"miscellaneous": ["acoustic", "happy", "comedy", "sad"]
+}
