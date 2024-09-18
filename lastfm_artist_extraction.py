@@ -9,6 +9,8 @@ import neo4j.exceptions as neo4j_exceptions
 from dotenv import load_dotenv
 import os
 import asyncio
+import json
+import pandas as pd
 
 
 async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
@@ -52,42 +54,28 @@ async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
     return result[0]["node.main_id"]
 
 
-async def get_tag_id_from_name(driver: AsyncDriver, name: str) -> str | None:
-    query = f"""
-        WITH \"{name}\" AS input_name
-        CALL db.index.fulltext.queryNodes('last_fm_tag_names_index', input_name) YIELD node, score
-        WHERE score > 1
-        RETURN node.name, node.id
-        ORDER BY score DESC
-        LIMIT 1;
-    """
-    result = await execute_query_return(driver, query)
-
-    if len(result) == 0:
-        return None
-
-    return result[0]["node.id"]
+def get_tag_ids(tags: list[str], tag_mapping: dict[str, set[str]]) -> list[str]:
+    result = set()
+    for subgenre, ids in tag_mapping.items():
+        for tag in tags:
+            if subgenre in tag:
+                result = result.union(ids)
+                break
+    result = list(result)
+    return result
 
 
-async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str]):
+async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str], tag_mapping: dict[str, set[str]]):
     # Update tags
-    for tag_name in tags:
-        tag_id = await get_tag_id_from_name(driver, tag_name)
-
-        if tag_id is None:
+    tag_ids = get_tag_ids(tags, tag_mapping)
+    for tag_id in tag_ids:
+        if tag_id is not None:
             query = f"""
-                MATCH (a:Artist {{main_id: \"{main_id}\"}})
-                MERGE (t:LFMTag {{id: randomUUID(), name: \"{tag_name}\"}})
+                MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:Tag {{id: \"{tag_id}\"}})
                 MERGE (t)-[:TAGS]->(a)
                 MERGE (a)-[:HAS_TAG]->(t)
             """
-        else:
-            query = f"""
-                MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:LFMTag {{id: \"{tag_id}\", name: \"{tag_name}\"}})
-                MERGE (t)-[:TAGS]->(a)
-                MERGE (a)-[:HAS_TAG]->(t)
-            """
-        _ = await execute_query(driver, query)
+            _ = await execute_query(driver, query)
 
     # Update links
     for name, match in similar_artists.items():
@@ -168,7 +156,7 @@ async def execute_query(driver: AsyncDriver, query: LiteralString | str) -> None
         _ = await session.run(query)   # type: ignore
 
 
-async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_api_key: str):
+async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_api_key: str, tag_mapping: dict[str, set[str]]):
     main_id = artist["main_id"]
     names = artist["known_names"]
     logging.info(f"FOUND ARTIST WITH main_id: '{main_id}'")
@@ -229,7 +217,7 @@ async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_ap
     if in_db:
         tag_list = list(tags)
         logging.info(f"Updating artist {main_id} with {listeners} listeners, {playcount} playcount, {len(similar_artists)} similar artists and {len(tag_list)} tags...")
-        _ = await update_artist(driver, main_id, listeners, playcount, similar_artists, tag_list)
+        _ = await update_artist(driver, main_id, listeners, playcount, similar_artists, tag_list, tag_mapping)
 
     # NOT IN API -> no data could be extracted
     else:
@@ -238,7 +226,37 @@ async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_ap
         _ = await execute_query(driver, query)
 
 
+def get_tag_mapping() -> dict[str, set[str]] | None:
+    genres = pd.read_csv("tags_clean.csv", dtype=str)
+    genres = {info["genre"]: info["id"] for _, info in genres.iterrows()}
+    with open("util/genres_taxonomy.json", "r") as f:
+        taxonomy = json.load(f)
+
+    # Error checking
+    genre_set = set(genres)
+    taxonomy_set = set(taxonomy)
+    if not (genre_set.issubset(taxonomy_set) and taxonomy_set.issubset(genre_set)):
+        logging.error("Taxonomy and genre information is not synchronized.")
+        return None
+
+    name_mapping = dict()
+    for main, subs in taxonomy.items():
+        for sub in subs:
+            if sub in name_mapping:
+                name_mapping[sub].append(genres[main])
+            else:
+                name_mapping[sub] = [genres[main]]
+
+    return dict((genre_name, set(ids)) for genre_name, ids in name_mapping.items())
+
+
 async def main(driver: AsyncDriver, last_fm_api_key: str):
+
+    tag_mapping = get_tag_mapping()
+
+    if tag_mapping is None:
+        return
+
     # Ctrl + c for exit
     # Or artist_count as 0
     while True:
@@ -263,7 +281,7 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
             return
 
         # Process each artist
-        _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key) for artist in await get_artists_from_db(driver, artist_count)])
+        _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key, tag_mapping.copy()) for artist in await get_artists_from_db(driver, artist_count)])
 
 
 if __name__ == '__main__':
