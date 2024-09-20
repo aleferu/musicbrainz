@@ -131,9 +131,16 @@ async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool,
         logging.error(f"Error message: {error_message}.")
         return False, None
     artist_info = info["artist"]
+
     similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     similar = similar.json()["similarartists"]["artist"]
     artist_info["similar"] = similar
+
+    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    top_tags = top_tags.json()
+    top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
+    artist_info["tags"] = top_tags["toptags"]
+
     return True, artist_info
 
 
