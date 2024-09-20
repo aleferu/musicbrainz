@@ -11,24 +11,18 @@ import os
 import asyncio
 import json
 import pandas as pd
+import re
+
+
+def get_clean_name(name: str) -> str:
+    good_chars = r"[^a-zA-Z0-9 ]"
+    return re.sub(good_chars, r"\\\g<0>", name)
 
 
 async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
+
     # Error avoidance
-    name = name.replace("!", "")
-    name = name.replace("/", "")
-    name = name.replace("\"", "")
-    name = name.replace("[", "")
-    name = name.replace("]", "")
-    name = name.replace("(", "")
-    name = name.replace(")", "")
-    name = name.replace(":", "")
-    name = name.replace("₩", "")
-    name = name.replace("-", "")
-    name = name.replace("~", "")
-    name = name.replace("{", "")
-    name = name.replace("}", "")
-    name = name.replace("^", "")
+    name = get_clean_name(name)
 
     if len(name.strip()) == 0:
         return None
@@ -133,13 +127,15 @@ async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool,
     artist_info = info["artist"]
 
     similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
-    similar = similar.json()["similarartists"]["artist"]
-    artist_info["similar"] = similar
+    similar = similar.json()
+    if "similarartists" in similar:
+        artist_info["similar"] = similar["similarartists"]["artist"]
 
     top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name}&api_key={last_fm_api_key}&format=json")
     top_tags = top_tags.json()
-    top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
-    artist_info["tags"] = top_tags["toptags"]
+    if "toptags" in top_tags:
+        top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
+        artist_info["tags"] = top_tags["toptags"]
 
     return True, artist_info
 
@@ -291,6 +287,12 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
         _ = await asyncio.gather(*[process_artist(driver, artist, last_fm_api_key, tag_mapping.copy()) for artist in await get_artists_from_db(driver, artist_count)])
 
 
+async def run_and_clean(driver: AsyncDriver, last_fm_api_key: str):
+    _ = await main(driver, last_fm_api_key)
+
+    _ = await driver.close()
+
+
 if __name__ == '__main__':
     load_dotenv()
 
@@ -319,7 +321,5 @@ if __name__ == '__main__':
     # db connection
     driver = AsyncGraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    _ = asyncio.run(main(driver, LAST_FM_API_KEY))
-
-    # cleanup
-    _ = asyncio.run(driver.close())
+    # Do the thing!
+    _ = asyncio.run(run_and_clean(driver, LAST_FM_API_KEY))
