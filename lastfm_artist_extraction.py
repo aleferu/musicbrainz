@@ -63,13 +63,12 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
     # Update tags
     tag_ids = get_tag_ids(tags, tag_mapping)
     for tag_id in tag_ids:
-        if tag_id is not None:
-            query = f"""
-                MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:Tag {{id: \"{tag_id}\"}})
-                MERGE (t)-[:TAGS]->(a)
-                MERGE (a)-[:HAS_TAG]->(t)
-            """
-            _ = await execute_query(driver, query)
+        query = f"""
+            MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:Tag {{id: \"{tag_id}\"}})
+            MERGE (t)-[:TAGS]->(a)
+            MERGE (a)-[:HAS_TAG]->(t)
+        """
+        _ = await execute_query(driver, query)
 
     # Update links
     for name, match in similar_artists.items():

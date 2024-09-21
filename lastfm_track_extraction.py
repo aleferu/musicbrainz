@@ -8,6 +8,8 @@ from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
 from dotenv import load_dotenv
 import os
 import asyncio
+import json
+import pandas as pd
 
 from lastfm_artist_extraction import get_tag_id_from_name, execute_query, execute_query_return
 
@@ -134,7 +136,37 @@ async def process_release(driver: AsyncDriver, release: dict[str, Any], last_fm_
         _ = await execute_query(driver, query)
 
 
+def get_tag_mapping() -> dict[str, set[str]] | None:
+    genres = pd.read_csv("tags_clean.csv", dtype=str)
+    genres = {info["genre"]: info["id"] for _, info in genres.iterrows()}
+    with open("util/genres_taxonomy.json", "r") as f:
+        taxonomy = json.load(f)
+
+    # Error checking
+    genre_set = set(genres)
+    taxonomy_set = set(taxonomy)
+    if not (genre_set.issubset(taxonomy_set) and taxonomy_set.issubset(genre_set)):
+        logging.error("Taxonomy and genre information is not synchronized.")
+        return None
+
+    name_mapping = dict()
+    for main, subs in taxonomy.items():
+        for sub in subs:
+            if sub in name_mapping:
+                name_mapping[sub].append(genres[main])
+            else:
+                name_mapping[sub] = [genres[main]]
+
+    return dict((genre_name, set(ids)) for genre_name, ids in name_mapping.items())
+
+
 async def main(driver: AsyncDriver, last_fm_api_key: str):
+
+    tag_mapping = get_tag_mapping()
+
+    if tag_mapping is None:
+        return
+
     # Ctrl + c for exit
     # Or release_count as 0
     while True:
