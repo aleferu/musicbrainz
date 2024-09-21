@@ -27,7 +27,7 @@ async def update_release(driver: AsyncDriver, release_id: str, listeners: int, p
 
     # Update individual stats
     query = f"""
-        MATCH (r:Release {{main_id:  \"{release_id}\"}})
+        MATCH (r:Release {{id:  \"{release_id}\"}})
         SET
             r.listeners = {listeners},
             r.playcount = {playcount},
