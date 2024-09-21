@@ -266,7 +266,6 @@ def get_tag_mapping() -> dict[str, set[str]] | None:
 
 
 async def main(driver: AsyncDriver, last_fm_api_key: str):
-
     tag_mapping = get_tag_mapping()
 
     if tag_mapping is None:

@@ -11,27 +11,20 @@ import asyncio
 import json
 import pandas as pd
 
-from lastfm_artist_extraction import get_tag_id_from_name, execute_query, execute_query_return
+from lastfm_artist_extraction import get_tag_mapping, get_tag_ids, execute_query, execute_query_return
 
 
-async def update_release(driver: AsyncDriver, release_id: str, listeners: int, playcount: int, tags: list[str]):
+async def update_release(driver: AsyncDriver, release_id: str, listeners: int, playcount: int, tags: list[str], tag_mapping: dict[str, set[str]]):
     # Update tags
-    for tag_name in tags:
-        tag_id = await get_tag_id_from_name(driver, tag_name)
-
-        if tag_id is None:
-            query = f"""
-                MATCH (r:Release {{id: \"{release_id}\"}})
-                MERGE (t:LFMTag {{id: randomUUID(), name: \"{tag_name}\"}})
-                MERGE (t)-[:TAGS]->(r)
-                MERGE (r)-[:HAS_TAG]->(t)
-            """
-        else:
-            query = f"""
-                MATCH (r:Artist {{main_id: \"{release_id}\"}}), (t:LFMTag {{id: \"{tag_id}\", name: \"{tag_name}\"}})
-                MERGE (t)-[:TAGS]->(r)
-                MERGE (r)-[:HAS_TAG]->(t)
-            """
+    tag_ids = get_tag_ids(tags, tag_mapping)
+    if len(tag_ids) > 0:
+        query = f"""
+            MATCH (r:Release {{id: \"{release_id}\"}})
+            UNWIND {str(tag_ids)} AS tag_id
+            MATCH (t:Tag {{id: tag_id}})
+            MERGE (t)-[:TAGS]->(r)
+            MERGE (r)-[:HAS_TAG]->(t)
+        """
         _ = await execute_query(driver, query)
 
     # Update individual stats
@@ -70,6 +63,13 @@ async def get_release_info(release_name: str, artist_name: str, last_fm_api_key:
         logging.error(f"Error message: {error_message}.")
         return False, None
     release_info = info["track"]
+
+    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    top_tags = top_tags.json()
+    if "toptags" in top_tags:
+        top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
+        release_info["tags"] = top_tags["toptags"]
+
     return True, release_info
 
 
@@ -85,7 +85,7 @@ async def get_releases_from_db(driver: AsyncDriver, release_count: int) -> list[
     return [r["n"] for r in query_result]
 
 
-async def process_release(driver: AsyncDriver, release: dict[str, Any], last_fm_api_key: str):
+async def process_release(driver: AsyncDriver, release: dict[str, Any], last_fm_api_key: str, tag_mapping: dict[str, set[str]]):
     release_id = release["id"]
     release_name = release["name"]
     logging.info(f"FOUND ARTIST WITH id '{release_id}' and name '{release_name}'")
@@ -128,40 +128,15 @@ async def process_release(driver: AsyncDriver, release: dict[str, Any], last_fm_
     if in_db:
         tag_list = list(tags)
         logging.info(f"Updating release {release_id} with {listeners} listeners, {playcount} playcount, and {len(tag_list)} tags...")
-        _ = await update_release(driver, release_id, listeners, playcount, tag_list)
+        _ = await update_release(driver, release_id, listeners, playcount, tag_list, tag_mapping)
 
     else:
         logging.error(f"  Seems like we couldn't extract info for release {release_id}...")
-        query = f"MATCH (r:Release {{id:  \"{release_id}\"}}) SET r.last_fm_call = true, r.in_last_fm = false"
+        query = f"MATCH (r:Release {{id: \"{release_id}\"}}) SET r.last_fm_call = true, r.in_last_fm = false"
         _ = await execute_query(driver, query)
 
 
-def get_tag_mapping() -> dict[str, set[str]] | None:
-    genres = pd.read_csv("tags_clean.csv", dtype=str)
-    genres = {info["genre"]: info["id"] for _, info in genres.iterrows()}
-    with open("util/genres_taxonomy.json", "r") as f:
-        taxonomy = json.load(f)
-
-    # Error checking
-    genre_set = set(genres)
-    taxonomy_set = set(taxonomy)
-    if not (genre_set.issubset(taxonomy_set) and taxonomy_set.issubset(genre_set)):
-        logging.error("Taxonomy and genre information is not synchronized.")
-        return None
-
-    name_mapping = dict()
-    for main, subs in taxonomy.items():
-        for sub in subs:
-            if sub in name_mapping:
-                name_mapping[sub].append(genres[main])
-            else:
-                name_mapping[sub] = [genres[main]]
-
-    return dict((genre_name, set(ids)) for genre_name, ids in name_mapping.items())
-
-
 async def main(driver: AsyncDriver, last_fm_api_key: str):
-
     tag_mapping = get_tag_mapping()
 
     if tag_mapping is None:
@@ -191,7 +166,7 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
             return
 
         # Process each artist
-        _ = await asyncio.gather(*[process_release(driver, release, last_fm_api_key) for release in await get_releases_from_db(driver, release_count)])
+        _ = await asyncio.gather(*[process_release(driver, release, last_fm_api_key, tag_mapping.copy()) for release in await get_releases_from_db(driver, release_count)])
 
 
 async def run_and_clean(driver: AsyncDriver, last_fm_api_key: str):
