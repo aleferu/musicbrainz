@@ -57,14 +57,15 @@ def get_tag_ids(tags: list[str], tag_mapping: dict[str, set[str]]) -> list[str]:
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str], tag_mapping: dict[str, set[str]]):
     # Update tags
     tag_ids = get_tag_ids(tags, tag_mapping)
-    query = f"""
-        MATCH (a:Artist {{main_id: \"{main_id}\"}})
-        UNWIND {str(tag_ids)} AS tag_id
-        MATCH (t:Tag {{id: tag_id}})
-        MERGE (t)-[:TAGS]->(a)
-        MERGE (a)-[:HAS_TAG]->(t)
-    """
-    _ = await execute_query(driver, query)
+    if len(tag_ids) > 0:
+        query = f"""
+            MATCH (a:Artist {{main_id: \"{main_id}\"}})
+            UNWIND {str(tag_ids)} AS tag_id
+            MATCH (t:Tag {{id: tag_id}})
+            MERGE (t)-[:TAGS]->(a)
+            MERGE (a)-[:HAS_TAG]->(t)
+        """
+        _ = await execute_query(driver, query)
 
     # Update links between artists
     id_match_pairs = list()
