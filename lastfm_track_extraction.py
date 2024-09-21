@@ -162,6 +162,12 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
         _ = await asyncio.gather(*[process_release(driver, release, last_fm_api_key) for release in await get_releases_from_db(driver, release_count)])
 
 
+async def run_and_clean(driver: AsyncDriver, last_fm_api_key: str):
+    _ = await main(driver, last_fm_api_key)
+
+    _ = await driver.close()
+
+
 if __name__ == '__main__':
     load_dotenv()
 
@@ -190,7 +196,5 @@ if __name__ == '__main__':
     # db connection
     driver = AsyncGraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    _ = asyncio.run(main(driver, LAST_FM_API_KEY))
-
-    # cleanup
-    _ = asyncio.run(driver.close())
+    # Do the thing!
+    _ = asyncio.run(run_and_clean(driver, LAST_FM_API_KEY))
