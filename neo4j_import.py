@@ -41,7 +41,7 @@ def import_mb_tags(driver: Driver):
     query = """
         CALL apoc.periodic.iterate(
             "LOAD CSV WITH HEADERS FROM 'file:///tags_clean.csv' AS row RETURN row",
-            "MERGE (t:Tag {id: row.id, name: row.name})",
+            "MERGE (t:Tag {id: row.id, name: row.genre})",
             {batchSize: 10, parallel: false}
         );
     """
@@ -162,9 +162,9 @@ def add_coll_links(driver: Driver):
 
 def add_relationships_links(driver: Driver):
     relationship_mappings = [
-        {"types": (102, 103, 104, 105, 106, 107, 108, 305, 728, 855, 965), "label": "MUSICALLY_RELATED_TO"},
-        {"types": (109, 110, 111, 112, 113, 292, 973, 1079), "label": "PERSONALLY_RELATED_TO"},
-        {"types": (722, 847, 895), "label": "LINKED_TO"},
+        {"types": [102, 103, 104, 105, 106, 107, 108, 305, 728, 855, 965], "label": "MUSICALLY_RELATED_TO"},
+        {"types": [109, 110, 111, 112, 113, 292, 973, 1079], "label": "PERSONALLY_RELATED_TO"},
+        {"types": [722, 847, 895], "label": "LINKED_TO"},
     ]
 
     for mapping in relationship_mappings:
