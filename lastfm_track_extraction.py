@@ -8,8 +8,6 @@ from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
 from dotenv import load_dotenv
 import os
 import asyncio
-import json
-import pandas as pd
 
 from lastfm_artist_extraction import get_tag_mapping, get_tag_ids, execute_query, execute_query_return
 
