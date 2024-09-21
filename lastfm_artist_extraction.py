@@ -5,7 +5,6 @@ import logging
 import requests_async as requests
 from typing import Any, LiteralString
 from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
-import neo4j.exceptions as neo4j_exceptions
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -19,33 +18,29 @@ def get_clean_name(name: str) -> str:
     return re.sub(good_chars, r"\\\g<0>", name)
 
 
-async def get_artist_id_from_name(driver: AsyncDriver, name: str) -> str | None:
-
+async def get_artist_ids_from_names(driver: AsyncDriver, artist_names: list[str]) -> list[dict[str, str]]:
     # Error avoidance
-    name = get_clean_name(name)
+    artist_names_pairs = list(map(lambda name: (name, get_clean_name(name)), filter(lambda name: len(name) > 0, artist_names)))
 
-    if len(name.strip()) == 0:
-        return None
-
-    query = f"""
-        WITH \"{name}\" AS input_name
-        CALL db.index.fulltext.queryNodes('artist_names_index', input_name) YIELD node, score
-        WHERE score > 1
-        RETURN node.main_id
-        ORDER BY score DESC
-        LIMIT 1;
+    query = """
+        UNWIND $artist_names AS artist_name
+        CALL (artist_name) {
+            WITH artist_name
+            CALL db.index.fulltext.queryNodes('artist_names_index', artist_name[1]) YIELD node, score
+            WHERE score > 1
+            RETURN node.main_id AS main_id
+            ORDER BY score DESC
+            LIMIT 1
+        }
+        RETURN artist_name[0] AS artist_name, main_id
+        ;
     """
-    try:
-        result = await execute_query_return(driver, query)
-    except neo4j_exceptions.ClientError as e:
-        logging.critical(f"ERROR: {e}")
-        logging.critical(f"Name: {name}")
-        exit()
+    params = {
+        "artist_names": artist_names_pairs
+    }
+    result = await execute_query_return(driver, query, params)
 
-    if len(result) == 0:
-        return None
-
-    return result[0]["node.main_id"]
+    return result
 
 
 def get_tag_ids(tags: list[str], tag_mapping: dict[str, set[str]]) -> list[str]:
@@ -62,36 +57,47 @@ def get_tag_ids(tags: list[str], tag_mapping: dict[str, set[str]]) -> list[str]:
 async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playcount: int, similar_artists: dict[str, float], tags: list[str], tag_mapping: dict[str, set[str]]):
     # Update tags
     tag_ids = get_tag_ids(tags, tag_mapping)
-    for tag_id in tag_ids:
-        query = f"""
-            MATCH (a:Artist {{main_id: \"{main_id}\"}}), (t:Tag {{id: \"{tag_id}\"}})
-            MERGE (t)-[:TAGS]->(a)
-            MERGE (a)-[:HAS_TAG]->(t)
-        """
-        _ = await execute_query(driver, query)
+    query = f"""
+        MATCH (a:Artist {{main_id: \"{main_id}\"}})
+        UNWIND {str(tag_ids)} AS tag_id
+        MATCH (t:Tag {{id: tag_id}})
+        MERGE (t)-[:TAGS]->(a)
+        MERGE (a)-[:HAS_TAG]->(t)
+    """
+    _ = await execute_query(driver, query)
 
-    # Update links
-    for name, match in similar_artists.items():
-        other_id = await get_artist_id_from_name(driver, name)
+    # Update links between artists
+    id_match_pairs = list()
+    artists_info = await get_artist_ids_from_names(driver, list(similar_artists.keys()))
+    for artist_info in artists_info:
+        name = artist_info["artist_name"]
+        id = artist_info["main_id"]
+        match = similar_artists[name]
+        id_match_pairs.append((id, match))
 
-        if other_id is None:
-            continue
-
-        query = f"""
-            MATCH (a0:Artist {{main_id: \"{main_id}\"}}), (a1:Artist {{main_id: \"{other_id}\"}})
+    if len(id_match_pairs) > 0:
+        query = """
+            MATCH (a0:Artist {main_id: $main_id})
+            UNWIND $id_match_pairs AS pair
+            MATCH (a1:Artist {main_id: pair[0]})
+            WHERE pair[0] <> $main_id
             MERGE (a0)-[l0:LAST_FM_MATCH]->(a1)
-                ON CREATE SET l0.weight = {match}
-                ON MATCH SET l0.weight = CASE WHEN l0.weight < {match} THEN {match} ELSE l0.weight END
+                ON CREATE SET l0.weight = pair[1]
+                ON MATCH SET l0.weight = CASE WHEN l0.weight < pair[1] THEN pair[1] ELSE l0.weight END
             MERGE (a1)-[l1:LAST_FM_MATCH]->(a0)
-                ON CREATE SET l1.weight = {match}
-                ON MATCH SET l1.weight = CASE WHEN l1.weight < {match} THEN {match} ELSE l1.weight END
+                ON CREATE SET l1.weight = pair[1]
+                ON MATCH SET l1.weight = CASE WHEN l1.weight < pair[1] THEN pair[1] ELSE l1.weight END
             ;
         """
-        _ = await execute_query(driver, query)
+        params = {
+            "main_id": main_id,
+            "id_match_pairs": id_match_pairs
+        }
+        _ = await execute_query(driver, query, params)
 
     # Update individual stats
     query = f"""
-        MATCH (a:Artist {{main_id:  \"{main_id}\"}})
+        MATCH (a:Artist {{main_id: \"{main_id}\"}})
         SET
             a.listeners = {listeners},
             a.playcount = {playcount},
@@ -145,17 +151,23 @@ async def get_artists_from_db(driver: AsyncDriver, artist_count: int) -> list[di
     return [r["n"] for r in query_result]
 
 
-async def execute_query_return(driver: AsyncDriver, query: LiteralString | str) -> list[dict[str, Any]]:
+async def execute_query_return(driver: AsyncDriver, query: LiteralString | str, params: None | dict[str, Any] = None) -> list[dict[str, Any]]:
     async with driver.session() as session:
         logging.info(f"Querying '{query}'...")
-        result = await session.run(query)  # type: ignore
+        if params is None:
+            result = await session.run(query)  # type: ignore
+        else:
+            result = await session.run(query, params)  # type: ignore
         return await result.data()
 
 
-async def execute_query(driver: AsyncDriver, query: LiteralString | str) -> None:
+async def execute_query(driver: AsyncDriver, query: LiteralString | str, params: None | dict[str, Any] = None) -> None:
     async with driver.session() as session:
         logging.info(f"Querying '{query}'...")
-        _ = await session.run(query)   # type: ignore
+        if params is None:
+            _ = await session.run(query)   # type: ignore
+        else:
+            _ = await session.run(query, params)  # type: ignore
 
 
 async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_api_key: str, tag_mapping: dict[str, set[str]]):
@@ -274,8 +286,9 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
             logging.info(e)
             continue
         except Exception as e:
-            logging.info("An error has occured.")
-            logging.info(e)
+            logging.error("An error has occured.")
+            logging.error(e)
+            logging.info("Exiting...")
             return
 
         if artist_count == 0:
