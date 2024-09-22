@@ -88,7 +88,7 @@ async def get_releases_from_db(driver: AsyncDriver, release_count: int) -> list[
 async def process_release(driver: AsyncDriver, release: dict[str, Any], last_fm_api_key: str, tag_mapping: dict[str, set[str]]):
     release_id = release["id"]
     release_name = release["name"]
-    logging.info(f"FOUND ARTIST WITH id '{release_id}' and name '{release_name}'")
+    logging.info(f"FOUND RELEASE WITH id '{release_id}' and name '{release_name}'")
 
     artists = await get_artists_from_release(driver, release_id)
     logging.info("Looping through its artists...")
