@@ -28,10 +28,7 @@ async def get_artist_ids_from_names(driver: AsyncDriver, artist_names: list[str]
         UNWIND $artist_names AS artist_name
         CALL (artist_name) {
             WITH artist_name
-            WHERE NOT artist_name[1] STARTS WITH "NOT" AND
-                NOT artist_name[1] STARTS WITH "AND" AND
-                NOT artist_name[1] STARTS WITH "OR"
-            CALL db.index.fulltext.queryNodes('artist_names_index', artist_name[1]) YIELD node, score
+            CALL db.index.fulltext.queryNodes('artist_names_index', LOWER(artist_name[1])) YIELD node, score
             WHERE score > 1
             RETURN node.main_id AS main_id
             ORDER BY score DESC
@@ -165,6 +162,7 @@ async def execute_query_return(driver: AsyncDriver, query: LiteralString | str, 
             if params is None:
                 result = await session.run(query)  # type: ignore
             else:
+                logging.info(f"Params: {params}")
                 result = await session.run(query, params)  # type: ignore
             return await result.data()
     except TransientError as _:
@@ -180,6 +178,7 @@ async def execute_query(driver: AsyncDriver, query: LiteralString | str, params:
             if params is None:
                 _ = await session.run(query)   # type: ignore
             else:
+                logging.info(f"Params: {params}")
                 _ = await session.run(query, params)  # type: ignore
     except TransientError as _:
         _ = await execute_query(driver, query, params)
