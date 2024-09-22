@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+import urllib.parse
 import logging
 import requests_async as requests
 from typing import Any
@@ -39,8 +40,9 @@ async def update_release(driver: AsyncDriver, release_id: str, listeners: int, p
 
 
 async def get_release_info(release_name: str, artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
-    filtered_release_name = release_name.replace("#", "")
-    request_url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist={artist_name}&track={filtered_release_name}&autocorrect=1&api_key={last_fm_api_key}&format=json"
+    release_name_clean = urllib.parse.quote(release_name)
+    artist_name_clean = urllib.parse.quote(artist_name)
+    request_url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist={artist_name_clean}&track={release_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json"
     info = await requests.get(request_url)
 
     if info.status_code != 200:
@@ -62,7 +64,7 @@ async def get_release_info(release_name: str, artist_name: str, last_fm_api_key:
         return False, None
     release_info = info["track"]
 
-    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&track={release_name_clean}&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     top_tags = top_tags.json()
     if "toptags" in top_tags:
         top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok

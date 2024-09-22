@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 
+import urllib.parse
 import logging
 import requests_async as requests
 from typing import Any, LiteralString
 from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
+from neo4j.exceptions import TransientError
 from dotenv import load_dotenv
 import os
 import asyncio
@@ -20,12 +22,13 @@ def get_clean_name(name: str) -> str:
 
 async def get_artist_ids_from_names(driver: AsyncDriver, artist_names: list[str]) -> list[dict[str, str]]:
     # Error avoidance
-    artist_names_pairs = list(map(lambda name: (name, get_clean_name(name)), filter(lambda name: len(name) > 0, artist_names)))
+    artist_names_pairs = list(map(lambda name: [name, get_clean_name(name)], filter(lambda name: len(name) > 0, artist_names)))
 
     query = """
         UNWIND $artist_names AS artist_name
         CALL (artist_name) {
             WITH artist_name
+            WHERE artist_name[1] <> "NOT"
             CALL db.index.fulltext.queryNodes('artist_names_index', artist_name[1]) YIELD node, score
             WHERE score > 1
             RETURN node.main_id AS main_id
@@ -110,7 +113,8 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
 
 
 async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
-    request_url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json"
+    artist_name_clean = urllib.parse.quote(artist_name)
+    request_url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json"
     info = await requests.get(request_url)
 
     if info.status_code != 200:
@@ -132,12 +136,12 @@ async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool,
         return False, None
     artist_info = info["artist"]
 
-    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     similar = similar.json()
     if "similarartists" in similar:
         artist_info["similar"] = similar["similarartists"]["artist"]
 
-    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name}&api_key={last_fm_api_key}&format=json")
+    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     top_tags = top_tags.json()
     if "toptags" in top_tags:
         top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
@@ -153,22 +157,32 @@ async def get_artists_from_db(driver: AsyncDriver, artist_count: int) -> list[di
 
 
 async def execute_query_return(driver: AsyncDriver, query: LiteralString | str, params: None | dict[str, Any] = None) -> list[dict[str, Any]]:
-    async with driver.session() as session:
-        logging.info(f"Querying '{query}'...")
-        if params is None:
-            result = await session.run(query)  # type: ignore
-        else:
-            result = await session.run(query, params)  # type: ignore
-        return await result.data()
+    try:
+        async with driver.session() as session:
+            logging.info(f"Querying '{query}'...")
+            if params is None:
+                result = await session.run(query)  # type: ignore
+            else:
+                result = await session.run(query, params)  # type: ignore
+            return await result.data()
+    except TransientError as _:
+        return await execute_query_return(driver, query, params)
+    except Exception as e:
+        raise e
 
 
 async def execute_query(driver: AsyncDriver, query: LiteralString | str, params: None | dict[str, Any] = None) -> None:
-    async with driver.session() as session:
-        logging.info(f"Querying '{query}'...")
-        if params is None:
-            _ = await session.run(query)   # type: ignore
-        else:
-            _ = await session.run(query, params)  # type: ignore
+    try:
+        async with driver.session() as session:
+            logging.info(f"Querying '{query}'...")
+            if params is None:
+                _ = await session.run(query)   # type: ignore
+            else:
+                _ = await session.run(query, params)  # type: ignore
+    except TransientError as _:
+        _ = await execute_query(driver, query, params)
+    except Exception as e:
+        raise e
 
 
 async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_api_key: str, tag_mapping: dict[str, set[str]]):
