@@ -28,7 +28,9 @@ async def get_artist_ids_from_names(driver: AsyncDriver, artist_names: list[str]
         UNWIND $artist_names AS artist_name
         CALL (artist_name) {
             WITH artist_name
-            WHERE artist_name[1] <> "NOT"
+            WHERE NOT artist_name[1] STARTS WITH "NOT" AND
+                NOT artist_name[1] STARTS WITH "AND" AND
+                NOT artist_name[1] STARTS WITH "OR"
             CALL db.index.fulltext.queryNodes('artist_names_index', artist_name[1]) YIELD node, score
             WHERE score > 1
             RETURN node.main_id AS main_id
