@@ -27,6 +27,10 @@ They must be executed in the following order (the subitems are the files generat
 - `lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 - `tags.ipynb`: Extracts MB's tags into a useful format for later use.
     - `tags.csv`
+- `clean_tags.py`: Using the information stored at the `util/` directory, this script filters the previously generated `tags.csv` and adapts the other CSVs.
+    - `tags_clean.csv`
+    - `artist_tags_clean.csv`
+    - `releases_no_va_merged_id_clean.csv` (That is getting ridiculous at this point, lol)
 - `neo4j_import.py`: Imports our current dataset into a [Neo4j database](https://neo4j.com/).
     - From now on the idea is to never manage several files anymore and keep it in this Neo4j DB.
 - `lastfm_*_extraction.py`: Imports the information that we can extract from [last.fm](https://www.last.fm/)'s API into the [Neo4j database](https://neo4j.com/). Files used:

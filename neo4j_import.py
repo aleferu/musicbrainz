@@ -35,29 +35,14 @@ def remove_db(driver: Driver):
 
 
 def import_mb_tags(driver: Driver):
-    # I will also create the index for LastFM's tags (LFMTag)
-    query = "CREATE INDEX IF NOT EXISTS FOR (t:LFMTag) ON (t.id);"
-    execute_query(driver, query)
-    # An index for the name will also be required.
-    query = "CREATE INDEX IF NOT EXISTS FOR (t:LFMTag) ON (t.name)"
-    execute_query(driver, query)
-    # I will also create a FULLTEXT index for the name
-    query = "CREATE FULLTEXT INDEX last_fm_tag_names_index IF NOT EXISTS FOR (t:LFMTag) ON EACH [t.name];"
-    execute_query(driver, query)
-
-    # Now with MB's tags
-    query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.id);"
-    execute_query(driver, query)
-    query = "CREATE INDEX IF NOT EXISTS FOR (t:MBTag) ON (t.name);"
-    execute_query(driver, query)
-    query = "CREATE FULLTEXT INDEX musicbrainz_tag_names_index IF NOT EXISTS FOR (t:MBTag) ON EACH [t.name];"
+    query = "CREATE INDEX IF NOT EXISTS FOR (t:Tag) ON (t.id);"
     execute_query(driver, query)
 
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///tags.csv' AS row RETURN row",
-            "MERGE (t:MBTag {id: row.id, name: row.name})",
-            {batchSize: 10000, parallel: true, concurrency: 8}
+            "LOAD CSV WITH HEADERS FROM 'file:///tags_clean.csv' AS row RETURN row",
+            "MERGE (t:Tag {id: row.id, name: row.genre})",
+            {batchSize: 10, parallel: false}
         );
     """
     execute_query(driver, query, True)
@@ -96,13 +81,13 @@ def import_artists(driver: Driver):
 def create_artist_mbtag_links(driver: Driver):
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///artist_tags.csv' AS row RETURN row",
+            "LOAD CSV WITH HEADERS FROM 'file:///artist_tags_clean.csv' AS row RETURN row",
             "
                 WITH
                     row.artist AS artist_id,
                     SPLIT(row.tags, ', ') AS tag_ids
                 UNWIND tag_ids AS tag_id
-                MATCH (a:Artist {main_id: artist_id}), (t:MBTag {id: tag_id})
+                MATCH (a:Artist {main_id: artist_id}), (t:Tag {id: tag_id})
                 MERGE (a)-[:HAS_TAG]->(t)
                 MERGE (t)-[:TAGS]->(a)
             ",
@@ -118,7 +103,7 @@ def import_releases(driver: Driver):
 
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id.csv' AS row RETURN row",
+            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id_clean.csv' AS row RETURN row",
             "
                 MERGE (r:Release {id: row.id})
                 ON CREATE SET
@@ -144,12 +129,12 @@ def import_releases(driver: Driver):
 
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id.csv' AS row RETURN row",
+            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id_clean.csv' AS row RETURN row",
             "
                 MATCH (r:Release {id: row.id})
                 WITH r, SPLIT(r.tags, ', ') AS release_tags
                 UNWIND release_tags AS release_tag
-                MATCH (t:MBTag {id: release_tag})
+                MATCH (t:Tag {id: release_tag})
                 MERGE (r)-[:HAS_TAG]->(t)
                 MERGE (t)-[:TAGS]->(r)
             ",
