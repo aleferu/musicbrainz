@@ -3,7 +3,6 @@
 
 import urllib.parse
 import logging
-import requests_async as requests
 from typing import Any
 from neo4j import AsyncDriver, AsyncGraphDatabase, basic_auth
 from dotenv import load_dotenv
