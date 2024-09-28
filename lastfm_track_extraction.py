@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import os
 import asyncio
 
-from lastfm_artist_extraction import get_tag_mapping, get_tag_ids, execute_query, execute_query_return
+from lastfm_artist_extraction import get_tag_mapping, get_tag_ids, execute_query, execute_query_return, make_request
 
 
 async def update_release(driver: AsyncDriver, release_id: str, listeners: int, playcount: int, tags: list[str], tag_mapping: dict[str, set[str]]):
@@ -42,31 +42,19 @@ async def update_release(driver: AsyncDriver, release_id: str, listeners: int, p
 async def get_release_info(release_name: str, artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
     release_name_clean = urllib.parse.quote(release_name)
     artist_name_clean = urllib.parse.quote(artist_name)
-    request_url = f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist={artist_name_clean}&track={release_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json"
-    info = await requests.get(request_url)
 
-    if info.status_code != 200:
-        logging.info(f"FOUND ERROR CODE: {info.status_code}")
-        logging.info(request_url)
-        logging.info("Request text in next line:")
-        logging.info(info.text)
-        exit()
+    info = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=track.getInfo&artist={artist_name_clean}&track={release_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
 
-    info = info.json()
-    if "error" in info:
-        error_code = info["error"]
-        if error_code == 6:
-            logging.error(f"An error with code 6 was found. Seems like the combination of {release_name} and {artist_name} was not found in the LastFM's API.")
-            return True, None
-        error_message = info["message"]
-        logging.error(f"An error with code {error_code} happened when trying to get info for the combination of {release_name} and {artist_name}.")
-        logging.error(f"Error message: {error_message}.")
+    if info is None:
+        return True, None
+    if "track" not in info:
+        logging.critical("Track not found in request!")
         return False, None
+
     release_info = info["track"]
 
-    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&track={release_name_clean}&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
-    top_tags = top_tags.json()
-    if "toptags" in top_tags:
+    top_tags = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&track={release_name_clean}&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    if top_tags is not None and "toptags" in top_tags:
         top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
         release_info["tags"] = top_tags["toptags"]
 
@@ -157,8 +145,9 @@ async def main(driver: AsyncDriver, last_fm_api_key: str):
             logging.info(e)
             continue
         except Exception as e:
-            logging.info("An error has occured.")
-            logging.info(e)
+            logging.error("An error has occured.")
+            logging.error(e)
+            logging.info("Exiting...")
             return
 
         if release_count == 0:

@@ -111,38 +111,60 @@ async def update_artist(driver: AsyncDriver, main_id: str, listeners: int, playc
     _ = await execute_query(driver, query)
 
 
+async def make_request(request_url: str, tries: int = 10) -> None | dict[str, Any]:
+    assert tries > 0, "Called make_request with tries <= 0..."
+    for _ in range(tries):
+        request = await requests.get(request_url)
+
+        if request.status_code != 200:
+            logging.error(f"REQUEST CODE DIFFERENT FROM 200: '{request.status_code}'...")
+            continue
+
+        try:
+            request = request.json()
+        except json.JSONDecodeError:
+            logging.error("JSONDecodeError FOUND!")
+            continue
+
+        error_code = request.get("error", -1)
+        if error_code == 6:
+            logging.error("ERROR CODE 6 FOUND. NOT FOUND IN LAST_FM. SKIPPING REQUEST...")
+            return None
+        elif error_code == 29:
+            seconds_to_wait = 30
+            logging.error(f"ERROR CODE 29 FOUND, TOO MANY REQUESTS. WAITING {seconds_to_wait} SECONDS...")
+            _ = await asyncio.sleep(seconds_to_wait)
+            continue
+        elif error_code != -1:
+            logging.error(f"An error with code '{error_code}' happened")
+            logging.error(f"Error message: {request.get("message", "UNKNOWN")}")
+            continue
+
+        return request
+
+    logging.critical(f"Unexpected happened when processing '{request_url}', check logs...")
+    exit(1)
+
+
 async def get_artist_info(artist_name: str, last_fm_api_key: str) -> tuple[bool, dict[str, Any] | None]:
     artist_name_clean = urllib.parse.quote(artist_name)
-    request_url = f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json"
-    info = await requests.get(request_url)
 
-    if info.status_code != 200:
-        logging.info(f"FOUND ERROR CODE: {info.status_code}")
-        logging.info(request_url)
-        logging.info("Request text in next line:")
-        logging.info(info.text)
-        exit()
+    info = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
 
-    info = info.json()
-    if "error" in info:
-        error_code = info["error"]
-        if error_code == 6:
-            logging.error(f"An error with code 6 was found. Seems like {artist_name} was not found in the LastFM's API.")
-            return True, None
-        error_message = info["message"]
-        logging.error(f"An error with code {error_code} happened when trying to get info for {artist_name}.")
-        logging.error(f"Error message: {error_message}.")
+    if info is None:
+        return True, None
+    if "artist" not in info:
+        logging.critical("Artist not found in request!")
         return False, None
+
     artist_info = info["artist"]
 
-    similar = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
-    similar = similar.json()
-    if "similarartists" in similar:
+    similar = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=artist.getSimilar&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    if similar is not None and "similarartists" in similar:
         artist_info["similar"] = similar["similarartists"]["artist"]
 
-    top_tags = await requests.get(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
-    top_tags = top_tags.json()
-    if "toptags" in top_tags:
+    top_tags = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=artist.getTopTags&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    if top_tags is not None and "toptags" in top_tags:
         top_tags["toptags"]["tag"] = list(filter(lambda t: t["count"] >= 5, top_tags["toptags"]["tag"]))  # 5 seems ok
         artist_info["tags"] = top_tags["toptags"]
 
