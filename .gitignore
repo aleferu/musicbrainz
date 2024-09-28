@@ -3,3 +3,5 @@ sql-scripts/
 *.csv
 tests.ipynb
 *.jsonl
+__pycache__/
+pyrightconfig.json
