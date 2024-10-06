@@ -28,9 +28,12 @@ def remove_db(driver: Driver):
         CALL apoc.periodic.iterate(
           "MATCH (n) RETURN n",
           "DETACH DELETE n",
-          {batchSize: 100000}
+          {batchSize: 20000}
         );
     """
+    execute_query(driver, query, True)
+
+    query = "CALL apoc.schema.assert({}, {})"
     execute_query(driver, query, True)
 
 
