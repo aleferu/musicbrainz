@@ -175,4 +175,8 @@ if __name__ == '__main__':
         done_count += len(artist_batch)
         logging.info(f"Processed {done_count} artists out of {total_artists}\n")
 
+    # Cleanup
+    driver.close()
+    engine.dispose()
+
     logging.info("DONE!")
