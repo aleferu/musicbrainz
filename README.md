@@ -38,6 +38,7 @@ They must be executed in the following order (the subitems are the files generat
     - `lastfm_artist_extraction_cont.py`
     - `lastfm_track_extraction.py`
     - `lastfm_track_extraction_cont.py`
+- `add_more_artist_info.py`: Extracts even more information related to artists in Musicbrainz and stores it in Neo4j.
 
 ## Dependencies
 
