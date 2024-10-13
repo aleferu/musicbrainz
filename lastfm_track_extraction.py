@@ -67,7 +67,7 @@ async def get_artists_from_release(driver: AsyncDriver, release_id: str) -> list
 
 
 async def get_releases_from_db(driver: AsyncDriver, release_count: int) -> list[dict[str, Any]]:
-    query = f"MATCH (n: Release {{last_fm_call: false}}) RETURN n LIMIT {release_count};"
+    query = f"MATCH (n:Release {{last_fm_call: false}}) WHERE n.name IS NOT NULL RETURN n LIMIT {release_count};"
     query_result = await execute_query_return(driver, query)
     return [r["n"] for r in query_result]
 
