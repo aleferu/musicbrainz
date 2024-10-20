@@ -40,6 +40,10 @@ They must be executed in the following order (the subitems are the files generat
     - `lastfm_track_extraction_cont.py`
 - `add_more_artist_info.py`: Extracts even more information related to artists in Musicbrainz and stores it in Neo4j.
 
+## Stats
+
+`stats.md` and `stats.ipynb` are dedicated to explain our dataset. With these two files you can learn about the root graph schema and check out some graphs and statistics. **Currently on development**.
+
 ## Dependencies
 
 A working python environment with the following:

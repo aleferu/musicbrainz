@@ -48,4 +48,21 @@ Schema visualization (purple -> Artist):
     - *id* (string): Primary key, UUID, main id, call it however you want.
     - *name* (string): Name of the tag.
 
-- **Relationships** **TODO**
+- **Relationships**:
+    - *WORKED_IN*: *Artist* to *Release*. Its inverse is *WORKED_BY*.
+    - *WORKED_BY*.
+    - *COLLAB_WITH*: *Artist* to *Artist*. Its inverse is itself.
+        - `count`: Number of collaborations.
+    - *MUSICALLY_RELATED_TO*: *Artist* to *Artist*. Its inverse is itself.
+        - `count`: Number of times that an entity of artist a was musically related to an entity of artist b in MusicBrainz's DB.
+        - Relationship types 102, 103, 104, 105, 106, 107, 108, 305, 728, 855 and 965 in MB's DB.
+    - *PERSONALLY_RELATED_TO*: *Artist* to *Artist*. Its inverse is itself.
+        - `count`: Number of times that an entity of artist a was personally related to an entity of artist b in MusicBrainz's DB.
+        - Relationship types 109, 110, 111, 112, 113, 292, 973 and 1079 in MB's DB.
+    - *LINKED_TO*: *Artist* to *Artist*. Its inverse is itself.
+        - `count`: Number of times that an entity of artist a was related to an entity of artist b, exluding the relations specified in the other *\*_RELATED_TO* relationships.
+        - Relationship types 722, 847, 895 in MB's DB.
+    - *LAST_FM_MATCH*: *Artist* to *Artist*. Its inverse is itself.
+        - `weight`: 0.0 to 1.0 similar artist score.
+    - *HAS_TAG*: *Artist* or *Release* to *Tag*. Its inverse is *TAGS*.
+    - *TAGS*.
