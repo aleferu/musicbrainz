@@ -44,18 +44,18 @@ They must be executed in the following order (the subitems are the files generat
 
 `stats.md` and `post_data/stats.ipynb` are dedicated to explain our dataset. With these two files you can learn about the root graph schema and check out some graphs and statistics. **Currently on development**.
 
-## Dependencies
+## Dependencies - conda
 
-A working python environment with the following:
-
-```
-psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook networkx
-```
-
-Use conda, pip... Whatever. Example:
+An `environment.yaml` is provided.
 
 ```bash
-conda create -n foo psycopg2 pandas sqlalchemy matplotlib python-dotenv notebook networkx
+conda env create -f environment.yaml
+```
+
+Or with custom name.
+
+```bash
+conda env create -n customenvname -f environment.yaml
 ```
 
 ## PostgreSQL (MusicBrainz) database installation
