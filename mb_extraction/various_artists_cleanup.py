@@ -4,15 +4,15 @@
 import pandas as pd
 
 
-def get_releases_df() -> pd.DataFrame:
+def get_tracks_df() -> pd.DataFrame:
     # This function must be called after 'recordings_and_releases.ipynb'
     dfs = []
     for i in range(1, 6):
-        path = f"releases-{i}.csv"
-        releases = dfs.append(pd.read_csv(path, dtype=str))
-    releases = pd.concat(dfs, ignore_index=True)
-    releases.fillna("", inplace=True)
-    return releases
+        path = f"./data/tracks-{i}.csv"
+        dfs.append(pd.read_csv(path, dtype=str))
+    tracks = pd.concat(dfs, ignore_index=True)
+    tracks.fillna("", inplace=True)
+    return tracks
 
 
 def remove_various_artist(row: dict[str, str]) -> dict[str, str]:
@@ -42,23 +42,23 @@ def remove_various_artist(row: dict[str, str]) -> dict[str, str]:
 def main() -> None:
     # Data read
     print("Obtaining the data...")
-    releases = get_releases_df()
+    tracks = get_tracks_df()
 
     # Only one artist with "Various Artists"
     print("Removing the solo instances of 'Various Artists'")
-    releases = releases.loc[
-        ~((releases["a0_id"] == "1") & (releases["artist_count"] == "1"))
+    tracks = tracks.loc[
+        ~((tracks["a0_id"] == "1") & (tracks["artist_count"] == "1"))
     ]
 
     # The rest
     print("Solving the other instances")
-    mask = (releases[[f"a{j}_id" for j in range(5)]] == "1").any(axis=1)
-    releases.loc[mask] = releases.loc[mask].apply(remove_various_artist, axis=1)
+    mask = (tracks[[f"a{j}_id" for j in range(5)]] == "1").any(axis=1)
+    tracks.loc[mask] = tracks.loc[mask].apply(remove_various_artist, axis=1)
 
     # Save the result
     print("Saving the result...")
-    releases.sort_values(by=["artist_count"], inplace=True)
-    releases.to_csv("releases_no_va.csv", index=False)
+    tracks.sort_values(by=["artist_count"], inplace=True)
+    tracks.to_csv("./data/tracks_no_va.csv", index=False)
 
     print("DONE!")
 

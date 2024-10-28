@@ -13,8 +13,8 @@ They must be executed in the following order (the subitems are the files generat
 - `mb_extraction/recordings_and_releases.ipynb`: Summary of all I've been learning/working on about `recordings` and `releases`, as well of the needed code to extract CSVs and some graphs.
     - `data/tracks-*.csv`, * being from 1 to 5.
 - `mb_extraction/genres.ipynb`: Shows that the genre entity is useless in MB at the moment. At least I can't find a way of using it.
-- `mb_extraction/various_artists_cleanup.py`: Script that merges the releases CSVs while removing the artist with ID 1 ("Various Artists").
-    - `data/releases_no_va.csv`
+- `mb_extraction/various_artists_cleanup.py`: Script that merges the tracks CSVs while removing the artist with ID 1 ("Various Artists").
+    - `data/tracks_no_va.csv`
 - `mb_extraction/artist_artist.ipynb`: Shows how to generate CSVs containing information on relationships between artists and how to merge different instances of the same artist. It also exports all the information gathered until this point, but modified.
     - `data/artists.jsonl`
     - `data/relationships.csv`
