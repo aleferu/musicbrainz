@@ -23,7 +23,7 @@ They must be executed in the following order (the subitems are the files generat
 - `mb_extraction/relationships_cleanup.py`: Generates a version of the relationships CSV without duplicates.
     - `data/relationships_clean.csv`
 - `pre_lfm/add_id_final_releases_csv.py`: Adds an id column to `data/releases_no_va_merged.csv` and modifies the data so that Neo4j won't complain.
-    - `data/releases_no_va_merged_id.csv`
+    - `data/tracks_no_va_merged_id.csv`
 - `pre_lfm/lastfm.ipynb`: Shows how we can use [last.fm](https://www.last.fm/)'s API and extract the information that holds.
 - `pre_lfm/tags.ipynb`: Extracts MB's tags into a useful format for later use.
     - `data/tags.csv`
