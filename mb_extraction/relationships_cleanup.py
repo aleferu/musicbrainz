@@ -7,7 +7,7 @@ import numpy as np
 
 if __name__ == '__main__':
     print("Reading CSV...")
-    relationships = pd.read_csv('relationships.csv', dtype=str)
+    relationships = pd.read_csv('./data/relationships.csv', dtype=str)
 
     # Drop duplicates
     print("Cleaning up...")
@@ -24,6 +24,6 @@ if __name__ == '__main__':
 
     # Export
     print("Exporting...")
-    relationships.to_csv("relationships_clean.csv", index=False)
+    relationships.to_csv("./data/relationships_clean.csv", index=False)
 
     print("Done!")
