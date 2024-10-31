@@ -40,7 +40,14 @@ They must be executed in the following order (the subitems are the files generat
     - `lfm/lastfm_track_extraction_cont.py`
 - `lfm/add_more_artist_info.py`: Extracts even more information related to artists in Musicbrainz and stores it in Neo4j.
 
+## Dates
+
+- Musicbrainz data: `2024-10-31 21:00:49.130771+00`
+- Neo4j: `TODO`
+
 ## Stats
+
+**Currently outdated**
 
 `stats.md` and `post_data/stats.ipynb` are dedicated to explain our dataset. With these two files you can learn about the root graph schema and check out some graphs and statistics. **Currently on development**.
 
