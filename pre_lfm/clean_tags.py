@@ -52,17 +52,18 @@ if __name__ == '__main__':
     logging.info(f"Found {len(top_tags)} tags.")
 
     # Now we'll import our tag CSV
-    logging.info("Reading 'tags.csv'...")
-    tags_csv = pd.read_csv("tags.csv", dtype=str)
-    tags_csv.fillna("", inplace=True)  # We have two tags without name
+    tags_path = "./data/tags.csv"
+    logging.info(f"Reading '{tags_path}'...")
+    tags_csv = pd.read_csv(tags_path, dtype=str)
+    tags_csv.fillna("", inplace=True)  # We may have tags without name
     logging.info(f"Read {len(tags_csv)} rows.")
 
     # Import our genre information
     logging.info("Reading 'genres.json'...")
-    with open("util/genres.json", "r") as f:
+    with open("./util/genres.json", "r") as f:
         genres = json.load(f)
     logging.info("Reading 'genres_taxonomy.json'...")
-    with open("util/genres_taxonomy.json", "r") as f:
+    with open("./util/genres_taxonomy.json", "r") as f:
         taxonomy = json.load(f)
 
     # Error checking
@@ -90,13 +91,13 @@ if __name__ == '__main__':
     logging.info("Done!")
 
     # tags_clean.csv
-    logging.info("Creating the clean version of 'tags.csv'...")
+    logging.info(f"Creating the clean version of '{tags_path}'...")
     genre_idx = {
         genre: str(i)
         for i, genre in enumerate(genres.keys())
     }
     temp = pd.DataFrame.from_records(((id, genre) for genre, id in genre_idx.items()), columns=["id", "genre"])
-    temp.to_csv("tags_clean.csv", index=False)
+    temp.to_csv("./data/tags_clean.csv", index=False)
     del temp
     logging.info("Done!")
 
@@ -125,10 +126,11 @@ if __name__ == '__main__':
     logging.info(f"Found {len(id_mapping)} id mappings and {len(homeless)} will be left behind.")
 
     # Artists
-    logging.info("Modifying 'artist_tags.csv'")
+    artist_tags_path = "./data/artist_tags.csv"
+    logging.info(f"Modifying '{artist_tags_path}'")
 
-    logging.info("  Reading 'artist_tags.csv'...")
-    artist_tags = pd.read_csv("artist_tags.csv", dtype=str)
+    logging.info(f"  Reading '{artist_tags_path}'...")
+    artist_tags = pd.read_csv(artist_tags_path, dtype=str)
 
     logging.info("  Modifying data...")
     artist_tags["tags"] = artist_tags["tags"].map(
@@ -141,17 +143,17 @@ if __name__ == '__main__':
     artist_tags["tags"] = artist_tags["tags"].replace("", np.nan)
     artist_tags.dropna(subset=["tags"], inplace=True)
 
-    logging.info("  Saving to 'artist_tags_clean.csv'...")
-    artist_tags.to_csv("artist_tags_clean.csv", index=False)
+    logging.info("  Saving to './data/artist_tags_clean.csv'...")
+    artist_tags.to_csv("./data/artist_tags_clean.csv", index=False)
 
-    # Releases
-    logging.info("Modifying 'releases_no_va_merged_id.csv'")
+    # tracks
+    logging.info("Modifying 'tracks_no_va_merged_id.csv'")
 
-    logging.info("  Reading 'releases_no_va_merged_id.csv'...")
-    releases = pd.read_csv("releases_no_va_merged_id.csv", dtype=str)
+    logging.info("  Reading './data/tracks_no_va_merged_id.csv'...")
+    tracks = pd.read_csv("./data/tracks_no_va_merged_id.csv", dtype=str)
 
     logging.info("  Modifying data...")
-    releases["tags"] = releases["tags"].map(
+    tracks["tags"] = tracks["tags"].map(
         lambda tags: ", ".join(set(
             x.strip() for x in (
                 (tag_id for tag in tags.split(", ") for tag_id in id_mapping.get(tag.strip(), "").split(", "))
@@ -159,9 +161,9 @@ if __name__ == '__main__':
         )),
         na_action="ignore"
     )
-    releases["tags"] = releases["tags"].replace("", np.nan)
+    tracks["tags"] = tracks["tags"].replace("", np.nan)
 
-    logging.info("  Saving to 'releases_no_va_merged_id_clean.csv'...")
-    releases.to_csv("releases_no_va_merged_id_clean.csv", index=False)
+    logging.info("  Saving to './data/tracks_no_va_merged_id_clean.csv'...")
+    tracks.to_csv("./data/tracks_no_va_merged_id_clean.csv", index=False)
 
     logging.info("ALL DONE!")

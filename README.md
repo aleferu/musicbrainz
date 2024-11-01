@@ -30,7 +30,7 @@ They must be executed in the following order (the subitems are the files generat
 - `pre_lfm/clean_tags.py`: Using the information stored at the `util/` directory, this script filters the previously generated `tags.csv` and adapts the other CSVs.
     - `data/tags_clean.csv`
     - `data/artist_tags_clean.csv`
-    - `data/releases_no_va_merged_id_clean.csv` (That is getting ridiculous at this point, lol)
+    - `data/tracks_no_va_merged_id_clean.csv` (That is getting ridiculous at this point, lol)
 - `lfm/neo4j_import.py`: Imports our current dataset into a [Neo4j database](https://neo4j.com/).
     - From now on the idea is to never manage several files anymore and keep it in this Neo4j DB.
 - `lfm/lastfm_*_extraction*.py`: Imports the information that we can extract from [last.fm](https://www.last.fm/)'s API into the [Neo4j database](https://neo4j.com/). Files used:
