@@ -71,14 +71,8 @@ I followed [this link](https://musicbrainz.org/doc/MusicBrainz_Server/Setup), se
 
 ## Neo4j database installation
 
-Just used Debian's (or Mint's in my case) APT command and added some configuration to `/etc/neo4j/neo4j.conf`. Guide: [link to guide](https://debian.neo4j.com/).
+https://neo4j.com/docs/operations-manual/current/installation/linux/debian/
 
-```bash
-wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
-echo 'deb https://debian.neo4j.com stable 5' | sudo tee /etc/apt/sources.list.d/neo4j.list
-sudo apt update
-sudo apt install neo4j
-```
 
 Configuration (added at the start of `/etc/neo4j/neo4j.conf`):
 
@@ -90,6 +84,12 @@ dbms.usage_report.enabled=false
 dbms.security.procedures.unrestricted=apoc.*
 dbms.security.procedures.allowlist=apoc.*
 dbms.memory.transaction.total.max=7g
+```
+
+Configuration added to `/etc/neo4j/apoc.conf` (might need to create file):
+
+```
+apoc.import.file.enabled=true
 ```
 
 Then just `sudo neo4j start/stop/restart...` to run.
