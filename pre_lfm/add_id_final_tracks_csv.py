@@ -9,7 +9,10 @@ if __name__ == '__main__':
     data = pd.read_csv("./data/tracks_no_va_merged.csv", dtype=str)
 
     print("Removing doble quotes...")
-    data = data.map(lambda x: x.replace('"', '') if isinstance(x, str) else x)
+    data = data.map(lambda x: x.replace('"', ''), na_action="ignore")
+
+    print("Removing backslashes quotes...")
+    data = data.map(lambda x: x.replace('\\', ''), na_action="ignore")
 
     print("Adding an index column...")
     data["id"] = range(len(data))

@@ -38,6 +38,9 @@ def remove_db(driver: Driver):
 
 
 def import_mb_tags(driver: Driver):
+    query = "CREATE CONSTRAINT IF NOT EXISTS FOR (t:Tag) REQUIRE t.id IS UNIQUE;"
+    execute_query(driver, query)
+
     query = "CREATE INDEX IF NOT EXISTS FOR (t:Tag) ON (t.id);"
     execute_query(driver, query)
 
@@ -56,7 +59,11 @@ def import_artists(driver: Driver):
     # dbms.security.procedures.allowlist=apoc.*
     # If stuck: google how to use apoc for loading JSON files in Neo4j
     # It's really simple, moving a .jar file and a few settings
+    # sudo cp /var/lib/neo4j/labs/apoc-5.25.1-core.jar /var/lib/neo4j/plugins/
     # You also need to "cp artists.jsonl /var/lib/neo4j/import/artists.jsonl"
+    query = "CREATE CONSTRAINT IF NOT EXISTS FOR (a:Artist) REQUIRE a.main_id IS UNIQUE;"
+    execute_query(driver, query)
+
     query = "CREATE FULLTEXT INDEX artist_names_index IF NOT EXISTS FOR (a:Artist) ON EACH [a.known_names];"
     execute_query(driver, query)
 
@@ -100,30 +107,40 @@ def create_artist_mbtag_links(driver: Driver):
     execute_query(driver, query, True)
 
 
-def import_releases(driver: Driver):
-    query = "CREATE INDEX IF NOT EXISTS FOR (r:Release) ON (r.id);"
+def import_tracks(driver: Driver):
+    query = "CREATE CONSTRAINT IF NOT EXISTS FOR (tr:Track) REQUIRE tr.id IS UNIQUE;"
+    execute_query(driver, query)
+
+    query = "CREATE INDEX IF NOT EXISTS FOR (tr:Track) ON (tr.id);"
+    execute_query(driver, query)
+
+    query = "CREATE FULLTEXT INDEX track_name_index IF NOT EXISTS FOR (tr:Track) ON EACH [tr.name];"
     execute_query(driver, query)
 
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id_clean.csv' AS row RETURN row",
             "
-                MERGE (r:Release {id: row.id})
+                LOAD CSV WITH HEADERS FROM 'file:///tracks_no_va_merged_id_clean.csv' AS row FIELDTERMINATOR ',' RETURN row
+            ",
+            "
+                MERGE (tr:Track {id: row.id})
                 ON CREATE SET
-                    r.name = row.name,
-                    r.date = DATE(row.date),
-                    r.artist_count = row.artist_count,
-                    r.listeners = 0,
-                    r.playcount = 0,
-                    r.last_fm_call = false,
-                    r.in_last_fm = false
+                    tr.name = row.name,
+                    tr.date = row.date,
+                    tr.year = row.year,
+                    tr.month = row.month,
+                    tr.artist_count = row.artist_count,
+                    tr.listeners = -1,
+                    tr.playcount = -1,
+                    tr.last_fm_call = false,
+                    tr.in_last_fm = false
                 WITH
                     [row.a0_id, row.a1_id, row.a2_id, row.a3_id, row.a4_id] AS artist_ids,
-                    r
+                    tr
                 UNWIND artist_ids AS artist_id
                 MATCH (a:Artist {main_id: artist_id})
-                MERGE (a)-[:WORKED_IN]->(r)
-                MERGE (r)-[:WORKED_BY]->(a)
+                MERGE (a)-[:WORKED_IN]->(tr)
+                MERGE (tr)-[:WORKED_BY]->(a)
             ",
             {batchSize: 50000}
         );
@@ -132,14 +149,14 @@ def import_releases(driver: Driver):
 
     query = """
         CALL apoc.periodic.iterate(
-            "LOAD CSV WITH HEADERS FROM 'file:///releases_no_va_merged_id_clean.csv' AS row RETURN row",
+            "LOAD CSV WITH HEADERS FROM 'file:///tracks_no_va_merged_id_clean.csv' AS row RETURN row",
             "
-                MATCH (r:Release {id: row.id})
-                WITH r, SPLIT(r.tags, ', ') AS release_tags
-                UNWIND release_tags AS release_tag
-                MATCH (t:Tag {id: release_tag})
-                MERGE (r)-[:HAS_TAG]->(t)
-                MERGE (t)-[:TAGS]->(r)
+                MATCH (tr:Track {id: row.id})
+                WITH tr, SPLIT(tr.tags, ', ') AS track_tags
+                UNWIND track_tags AS track_tag
+                MATCH (t:Tag {id: track_tag})
+                MERGE (tr)-[:HAS_TAG]->(t)
+                MERGE (t)-[:TAGS]->(tr)
             ",
             {batchSize: 50000}
         );
@@ -149,7 +166,7 @@ def import_releases(driver: Driver):
 
 def add_coll_links(driver: Driver):
     query = """
-        MATCH (a0:Artist)-[:WORKED_IN]->(r:Release)<-[:WORKED_IN]-(a1:Artist)
+        MATCH (a0:Artist)-[:WORKED_IN]->(tr:Track)<-[:WORKED_IN]-(a1:Artist)
         WHERE a0.main_id < a1.main_id
         WITH a0, a1
         MERGE (a0)-[c0:COLLAB_WITH]->(a1)
@@ -213,8 +230,8 @@ def main(driver: Driver) -> None:
     # With their tags
     create_artist_mbtag_links(driver)
 
-    # Now the releases
-    import_releases(driver)
+    # Now the tracks
+    import_tracks(driver)
 
     # Create the collaboration links
     add_coll_links(driver)
