@@ -11,7 +11,7 @@ import argparse
 from lastfm_artist_extraction import process_artist, get_artists_from_db, get_tag_mapping
 
 
-async def process_artists_continuously(driver: AsyncDriver, last_fm_api_key: str, x_artists: int, duration_seconds: int):
+async def process_artists_continuously(driver: AsyncDriver, lfm_keys: list[str], x_artists: int, duration_seconds: int):
     tag_mapping = get_tag_mapping()
 
     if tag_mapping is None:
@@ -31,7 +31,7 @@ async def process_artists_continuously(driver: AsyncDriver, last_fm_api_key: str
 
         # Process each artist
         _ = await asyncio.gather(
-            *[process_artist(driver, artist, last_fm_api_key, tag_mapping.copy()) for artist in artists]
+            *[process_artist(driver, artist, lfm_keys[i % len(lfm_keys)], tag_mapping.copy()) for i, artist in enumerate(artists)]
         )
 
         elapsed_time = time.time() - start_time
@@ -40,8 +40,8 @@ async def process_artists_continuously(driver: AsyncDriver, last_fm_api_key: str
     logging.info("Time limit reached. Exiting...")
 
 
-async def run_and_clean(driver: AsyncDriver, last_fm_api_key: str, x_artists: int, duration_seconds: int):
-    _ = await process_artists_continuously(driver, last_fm_api_key, x_artists, duration_seconds)
+async def run_and_clean(driver: AsyncDriver, lfm_keys: list[str], x_artists: int, duration_seconds: int):
+    _ = await process_artists_continuously(driver, lfm_keys, x_artists, duration_seconds)
     _ = await driver.close()
 
 
@@ -75,29 +75,39 @@ if __name__ == '__main__':
         default=1,
         help=f"Amount of artists fetched by the script per iteration. Default: {default_artist_amount}.")
 
+    default_key_amount = 1
+    parser.add_argument(
+        "--key_amount",
+        type=int,
+        default=1,
+        help=f"Amount of keys used by the script. Default: {default_key_amount}.")
+
     args = parser.parse_args()
     run_time = args.run_time
     assert run_time > 0
     artist_amount = args.artist_amount
     assert artist_amount > 0
+    key_amount = args.key_amount
+    assert key_amount > 0
 
     # .env read
     DB_HOST = os.getenv("NEO4J_HOST")
     DB_PORT = os.getenv("NEO4J_PORT")
     DB_USER = os.getenv("NEO4J_USER")
     DB_PASS = os.getenv("NEO4J_PASS")
-    LAST_FM_API_KEY = os.getenv("LAST_FM_API_KEY")
+
+    lfm_keys = [os.getenv(f"LAST_FM_API_KEY_{i}") for i in range(key_amount)]
 
     # .env validation
     assert DB_HOST is not None and \
         DB_PORT is not None and \
         DB_USER is not None and \
         DB_PASS is not None and \
-        LAST_FM_API_KEY is not None, \
+        all(key is not None for key in lfm_keys), \
         "INVALID .env"
 
     # db connection
     driver = AsyncGraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
     # Do the thing!
-    _ = asyncio.run(run_and_clean(driver, LAST_FM_API_KEY, artist_amount, run_time))
+    _ = asyncio.run(run_and_clean(driver, lfm_keys, artist_amount, run_time))  # type: ignore

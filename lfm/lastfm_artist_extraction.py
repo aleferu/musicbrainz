@@ -279,9 +279,9 @@ async def process_artist(driver: AsyncDriver, artist: dict[str, Any], last_fm_ap
 
 
 def get_tag_mapping() -> dict[str, set[str]] | None:
-    genres = pd.read_csv("tags_clean.csv", dtype=str)
+    genres = pd.read_csv("./data/tags_clean.csv", dtype=str)
     genres = {info["genre"]: info["id"] for _, info in genres.iterrows()}
-    with open("util/genres_taxonomy.json", "r") as f:
+    with open("./util/genres_taxonomy.json", "r") as f:
         taxonomy = json.load(f)
 
     # Error checking
@@ -357,7 +357,7 @@ if __name__ == '__main__':
     DB_PORT = os.getenv("NEO4J_PORT")
     DB_USER = os.getenv("NEO4J_USER")
     DB_PASS = os.getenv("NEO4J_PASS")
-    LAST_FM_API_KEY = os.getenv("LAST_FM_API_KEY")
+    LAST_FM_API_KEY = os.getenv("LAST_FM_API_KEY_0")
 
     # .env validation
     assert DB_HOST is not None and \
