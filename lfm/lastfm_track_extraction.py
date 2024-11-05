@@ -12,7 +12,7 @@ import asyncio
 from lastfm_artist_extraction import get_tag_mapping, get_tag_ids, execute_query, execute_query_return, make_request
 
 
-async def update_track(driver: AsyncDriver, track_id: str, listeners: int, playcount: int, tags: list[str], tag_mapping: dict[str, set[str]]):
+async def update_track(driver: AsyncDriver, track_id: str, listeners: int, playcount: int, similar_tracks: dict[str, tuple[str, float]], tags: list[str], tag_mapping: dict[str, set[str]]):
     # Update tags
     tag_ids = get_tag_ids(tags, tag_mapping)
     if len(tag_ids) > 0:
@@ -24,6 +24,9 @@ async def update_track(driver: AsyncDriver, track_id: str, listeners: int, playc
             MERGE (r)-[:HAS_TAG]->(t)
         """
         _ = await execute_query(driver, query)
+
+    # TODO: do something with similar_tracks
+    logging.info(similar_tracks)
 
     # Update individual stats
     query = f"""
@@ -51,6 +54,10 @@ async def get_track_info(track_name: str, artist_name: str, last_fm_api_key: str
         return False, None
 
     track_info = info["track"]
+
+    similar = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=track.getSimilar&track={track_name_clean}&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
+    if similar is not None and "similartracks" in similar:
+        track_info["similar"] = similar["similarartists"]["track"]
 
     top_tags = await make_request(f"http://ws.audioscrobbler.com/2.0/?method=track.getTopTags&track={track_name_clean}&artist={artist_name_clean}&autocorrect=1&api_key={last_fm_api_key}&format=json")
     if top_tags is not None and "toptags" in top_tags:
@@ -84,6 +91,7 @@ async def process_track(driver: AsyncDriver, track: dict[str, Any], last_fm_api_
     listeners = 0
     playcount = 0
     tags: set[str] = set()
+    similar_tracks: dict[str, tuple[str, float]] = dict()
 
     for artist_name in artists:
         logging.info(f"  Trying with the artist name {artist_name}")
@@ -112,10 +120,23 @@ async def process_track(driver: AsyncDriver, track: dict[str, Any], last_fm_api_
                 tags.update(tag_list)
                 logging.info(f"    Found tags: {tag_list}")
 
+        for similar_track in track_info.get("similar", []):
+            similar_track: dict[str, Any]
+            similar_track_name = similar_track["name"]
+            similar_track_artist = similar_track["artist"]["name"]
+            old_sta, old_match = similar_tracks.get(similar_track_name, ("", 0))
+            if (new_match := float(similar_track["match"])) > old_match:
+                match = new_match
+            else:
+                match = old_match
+                similar_track_artist = old_sta
+            similar_tracks[similar_track_name] = (similar_track_artist, match)
+            logging.info(f"    Found similar track: '{similar_track_name}'. Match: '{match}'. Artist name: {similar_track_artist}.")
+
     if in_db:
         tag_list = list(tags)
         logging.info(f"Updating track {track_id} with {listeners} listeners, {playcount} playcount, and {len(tag_list)} tags...")
-        _ = await update_track(driver, track_id, listeners, playcount, tag_list, tag_mapping)
+        _ = await update_track(driver, track_id, listeners, playcount, similar_tracks, tag_list, tag_mapping)
 
     else:
         logging.error(f"  Seems like we couldn't extract info for track {track_id}...")
