@@ -114,6 +114,15 @@ def import_tracks(driver: Driver):
     query = "CREATE INDEX IF NOT EXISTS FOR (tr:Track) ON (tr.id);"
     execute_query(driver, query)
 
+    query = "CREATE INDEX IF NOT EXISTS FOR (tr:Track) ON (tr.artist_count);"
+    execute_query(driver, query)
+
+    query = "CREATE INDEX IF NOT EXISTS FOR (tr:Track) ON (tr.last_fm_call);"
+    execute_query(driver, query)
+
+    query = "CREATE INDEX IF NOT EXISTS FOR (tr:Track) ON (tr.in_last_fm);"
+    execute_query(driver, query)
+
     query = "CREATE FULLTEXT INDEX track_name_index IF NOT EXISTS FOR (tr:Track) ON EACH [tr.name];"
     execute_query(driver, query)
 
