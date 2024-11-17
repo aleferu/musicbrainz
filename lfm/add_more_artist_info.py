@@ -128,6 +128,8 @@ if __name__ == '__main__':
         "end_date_year": lambda values: ",".join(map(str, sorted(value for value in values if value != -1))),
         "ended": "mean"
     })
+    grouped_artists["id"] = grouped_artists.index
+    assert (grouped_artists["id"] == grouped_artists.index).all(), "Something went wrong with the index!"
 
     # Records
     logging.info("Generating records")
@@ -171,7 +173,7 @@ if __name__ == '__main__':
         params = {
             "list_artist_info": artist_batch
         }
-        execute_query_return(driver, query, params)
+        logging.debug(execute_query_return(driver, query, params))
         done_count += len(artist_batch)
         logging.info(f"Processed {done_count} artists out of {total_artists}\n")
 
