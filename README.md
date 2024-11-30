@@ -81,8 +81,8 @@ server.memory.heap.max_size=8G
 server.memory.heap.initial_size=7G
 dbms.security.auth_enabled=false
 dbms.usage_report.enabled=false
-dbms.security.procedures.unrestricted=apoc.*
-dbms.security.procedures.allowlist=apoc.*
+dbms.security.procedures.unrestricted=apoc.*,gds.*
+dbms.security.procedures.allowlist=apoc.*,gds.*
 dbms.memory.transaction.total.max=7g
 ```
 
@@ -91,6 +91,8 @@ Configuration added to `/etc/neo4j/apoc.conf` (might need to create file):
 ```
 apoc.import.file.enabled=true
 ```
+
+`APOC` should already be downloaded somewhere in `/var/lib/neo4j/`, but you need to download and install `GDS` from [this link](https://neo4j.com/deployment-center/#gds-tab) (also check [version compatibilities](https://neo4j.com/docs/graph-data-science/current/installation/supported-neo4j-versions/) and [instructions](https://neo4j.com/docs/graph-data-science/current/installation/neo4j-server/)).
 
 Then just `sudo neo4j start/stop/restart...` to run.
 
