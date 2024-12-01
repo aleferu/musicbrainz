@@ -14,7 +14,7 @@ import numpy as np
 
 # Sample output:
 """
-2024-12-01 18:44:54 - INFO - Connection established! Generating graphs...
+2024-12-01 18:44:54 - INFO - Connection established! Generating graph...
 2024-12-01 18:45:26 - INFO - Done! Found 593081 nodes and 1231526 edges.
 2024-12-01 18:45:26 - INFO - ------------------------------------------
 2024-12-01 18:45:26 - INFO - Computing average clustering...
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     # db connection
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    logging.info("Connection established! Generating graphs...")
+    logging.info("Connection established! Generating graph...")
 
     # Data gathering
     G = nx.Graph()
