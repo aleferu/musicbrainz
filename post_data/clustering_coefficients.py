@@ -7,7 +7,6 @@ import networkx as nx
 import logging
 from dotenv import load_dotenv
 import numpy as np
-from functools import reduce
 
 
 # https://networkx.org/documentation/stable/reference/algorithms/clustering.html
