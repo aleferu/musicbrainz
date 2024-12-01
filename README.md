@@ -58,9 +58,9 @@ Can be found at `pyg_experiments/`.
 
 ## Stats
 
-**Currently outdated**
+`schema.md` and `post_data/stats.ipynb` are dedicated to explain our dataset. With these two files you can learn about the root graph schema and check out some graphs and statistics.
 
-`stats.md` and `post_data/stats.ipynb` are dedicated to explain our dataset. With these two files you can learn about the root graph schema and check out some graphs and statistics. **Currently on development**.
+`post_data/stats.ipynb` **is currently outdated.**
 
 ## Dependencies - conda
 
