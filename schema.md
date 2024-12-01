@@ -2,7 +2,7 @@
 
 Schema visualization (purple -> Artist):
 
-![image.png](./img/schema_vis.png){ style="display: block; margin: 0 auto" }
+![image.png](./img/schema_vis.png)
 
 **For more stats and for plots see *stats.ipynb*.**
 
