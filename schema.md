@@ -34,22 +34,24 @@ Schema visualization (purple -> Artist):
         - *type_5* means orchestra.
         - *type_6* means choir.
 
-- **Release**: 
+- **Track**: 
     - *id* (string): Primary key, UUID, main id, call it however you want.
-    - *name* (string): Name of the release in MusicBrainz.
+    - *name* (string): Name of the track in MusicBrainz.
     - *last_fm_call* (boolean): If I've tried to extract information from LastFM about this node.
     - *in_last_fm* (boolean): If I've successfully extracted information from LastFM about this node.
-    - *listeners* (integer): Sum of all the instances of the release's listeners in LastFM.
-    - *playcount* (integer): Sum of all the instances of the release's playcount in LastFM.
-    - *artist_count* (integer): Number of artists involved in the release.
-    - *date* (string): Release date in YYYY-MM-DD format.
+    - *listeners* (integer): Sum of all the instances of the track's listeners in LastFM.
+    - *playcount* (integer): Sum of all the instances of the track's playcount in LastFM.
+    - *artist_count* (integer): Number of artists involved in the track.
+    - *month* (integer): Release month (or 13 if no info).
+    - *year* (integer): Release year (or 0 if no info).
+    - *date* (string): `date = 100 * year + month`.
 
 - **Tag**: 
     - *id* (string): Primary key, UUID, main id, call it however you want.
     - *name* (string): Name of the tag.
 
 - **Relationships**:
-    - *WORKED_IN*: *Artist* to *Release*. Its inverse is *WORKED_BY*.
+    - *WORKED_IN*: *Artist* to *Track*. Its inverse is *WORKED_BY*.
     - *WORKED_BY*.
     - *COLLAB_WITH*: *Artist* to *Artist*. Its inverse is itself.
         - `count`: Number of collaborations.
@@ -64,5 +66,16 @@ Schema visualization (purple -> Artist):
         - Relationship types 722, 847, 895 in MB's DB.
     - *LAST_FM_MATCH*: *Artist* to *Artist*. Its inverse is itself.
         - `weight`: 0.0 to 1.0 similar artist score.
-    - *HAS_TAG*: *Artist* or *Release* to *Tag*. Its inverse is *TAGS*.
+    - *HAS_TAG*: *Artist* or *Track* to *Tag*. Its inverse is *TAGS*.
     - *TAGS*.
+
+All relationships/edges have a `pg_weight` field:
+
+```cypher
+MATCH ()-[r]->()
+SET r.pg_weight = CASE
+    WHEN r.weight IS NOT NULL THEN r.weight
+    WHEN r.count IS NOT NULL THEN r.count
+    ELSE 1
+END
+```
