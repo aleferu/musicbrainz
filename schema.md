@@ -62,7 +62,7 @@ Schema visualization (purple -> Artist):
         - `count`: Number of times that an entity of artist a was personally related to an entity of artist b in MusicBrainz's DB.
         - Relationship types 109, 110, 111, 112, 113, 292, 973 and 1079 in MB's DB.
     - *LINKED_TO*: *Artist* to *Artist*. Its inverse is itself.
-        - `count`: Number of times that an entity of artist a was related to an entity of artist b, exluding the relations specified in the other *\*_RELATED_TO* relationships.
+        - `count`: Number of times that an entity of artist a was related to an entity of artist b, excluding the relations specified in the other *\*_RELATED_TO* relationships.
         - Relationship types 722, 847, 895 in MB's DB.
     - *LAST_FM_MATCH*: *Artist* to *Artist*. Its inverse is itself.
         - `weight`: 0.0 to 1.0 similar artist score.
