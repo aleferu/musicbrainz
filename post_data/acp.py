@@ -317,7 +317,7 @@ def main(driver: Driver) -> None:
         query = """
             MATCH (n:Artist {in_last_fm: true})-[:COLLAB_WITH]->()
             WITH DISTINCT(n) AS n
-            RETURN n.main_id as main_id, n.listeners as listeners, n.playcount as playcount
+            RETURN n.main_id AS main_id, n.listeners AS listeners, n.playcount AS playcount
         """
         q_result = session.run(query)
         df = pd.DataFrame(q_result.data())
