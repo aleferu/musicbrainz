@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from neo4j import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth, Driver
 from dotenv import load_dotenv
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -11,6 +11,7 @@ import networkx as nx
 from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 import logging
+import numpy as np
 
 
 # Sample output:
@@ -244,7 +245,56 @@ def apply_custom_cumsum(df: pd.DataFrame) -> None:
     df.loc[i, "pagerank_acc"] = current_cum_sum + df.loc[i, "pagerank"]
 
 
-def pg_thingy(df: pd.DataFrame, G: nx.Graph, percentile_start: float, percentile_end: float = 100.0):
+def conn_comp_thingy(G: nx.Graph) -> None:
+    logging.info("        Computing number of Connected Components...")
+    number = nx.number_connected_components(G)
+    logging.info(f"            Number of Connected Components: {number}")
+
+
+def clust_coef_thingy(G: nx.Graph) -> None:
+    logging.info("        Computing Clustering...")
+    clust = np.array([c for c in nx.clustering(G).values()])
+
+    logging.info(f"            Mean: {clust.mean()}")
+    logging.info(f"              Sd: {clust.std()}")
+    logging.info(f"             Min: {clust.min()}")
+    logging.info(f"              Q1: {np.percentile(clust, 25)}")
+    logging.info(f"              Q2: {np.percentile(clust, 50)}")
+    logging.info(f"              Q3: {np.percentile(clust, 75)}")
+    logging.info(f"             Max: {clust.max()}")
+
+    logging.info("        Computing Triangles...")
+    triangles = np.array([t for t in nx.triangles(G).values()])
+
+    logging.info(f"            Mean: {triangles.mean()}")
+    logging.info(f"              Sd: {triangles.std()}")
+    logging.info(f"             Min: {triangles.min()}")
+    logging.info(f"              Q1: {np.percentile(triangles, 25)}")
+    logging.info(f"              Q2: {np.percentile(triangles, 50)}")
+    logging.info(f"              Q3: {np.percentile(triangles, 75)}")
+    logging.info(f"             Max: {triangles.max()}")
+
+
+def pg_thingy(df: pd.DataFrame, G: nx.Graph):
+        logging.info("        Computing PageRank...")
+        pg = nx.pagerank(G)
+        df["pagerank"] = df["main_id"].map(pg)
+        df["pagerank_cumsum"] = df['pagerank'].cumsum()
+        df["pagerank_acc"] = df['pagerank_cumsum']  # Need a placeholder
+
+        apply_custom_cumsum(df)
+
+        pop_pg, p_pop_pg = pearsonr(df["popularity_scaled"], df["pagerank"])
+        pop_pg_cs, p_pop_pg_cs = pearsonr(df["popularity_scaled"], df["pagerank_cumsum"])
+        pop_pg_acc, p_pop_pg_acc = pearsonr(df["popularity_scaled"], df["pagerank_acc"])
+
+        logging.info("        Correlations: ")
+        logging.info(f"            Popularity and Pagerank: {pop_pg} with p-value of {p_pop_pg:.3f}.")
+        logging.info(f"            Popularity and Pagerank CumSum: {pop_pg_cs} with p-value of {p_pop_pg_cs:.3f}")
+        logging.info(f"            Popularity and Pagerank Acc: {pop_pg_acc} with p-value of {p_pop_pg_acc:.3f}")
+
+
+def do_the_things(df: pd.DataFrame, G: nx.Graph, percentile_start: float, percentile_end: float = 100.0) -> None:
         start_p = int(percentile_start / 100.0 * len(df))
         end_p = int(percentile_end / 100.0 * len(df))
         logging.info(f"    Getting {percentile_end - percentile_start}% of data.")
@@ -255,52 +305,12 @@ def pg_thingy(df: pd.DataFrame, G: nx.Graph, percentile_start: float, percentile
         subg = G.subgraph(subdf.main_id)
         logging.info(f"        Found: {len(subdf)} nodes")
 
-        logging.info("        Computing PageRank...")
-        pg = nx.pagerank(subg)
-        subdf["pagerank"] = subdf["main_id"].map(pg)
-        subdf["pagerank_cumsum"] = subdf['pagerank'].cumsum()
-        subdf["pagerank_acc"] = subdf['pagerank_cumsum']
-
-        apply_custom_cumsum(subdf)
-
-        pop_pg, p_pop_pg = pearsonr(subdf["popularity_scaled"], subdf["pagerank"])
-        pop_pg_cs, p_pop_pg_cs = pearsonr(subdf["popularity_scaled"], subdf["pagerank_cumsum"])
-        pop_pg_acc, p_pop_pg_acc = pearsonr(subdf["popularity_scaled"], subdf["pagerank_acc"])
-
-        pop_pg = subdf["popularity_scaled"].corr(subdf["pagerank"])
-        pop_pg_cs = subdf["popularity_scaled"].corr(subdf["pagerank_cumsum"])
-        pop_pg_acc = subdf["popularity_scaled"].corr(subdf["pagerank_acc"])
-        logging.info("        Correlations: ")
-        logging.info(f"            Popularity and Pagerank: {pop_pg} with p-value of {p_pop_pg:.3f}.")
-        logging.info(f"            Popularity and Pagerank CumSum: {pop_pg_cs} with p-value of {p_pop_pg_cs:.3f}")
-        logging.info(f"            Popularity and Pagerank Acc: {pop_pg_acc} with p-value of {p_pop_pg_acc:.3f}")
+        pg_thingy(subdf, subg)
+        conn_comp_thingy(subg)
+        clust_coef_thingy(subg)
 
 
-if __name__ == '__main__':
-    # Logging setup
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    # .env read
-    load_dotenv()
-    DB_HOST = os.getenv("NEO4J_HOST")
-    DB_PORT = os.getenv("NEO4J_PORT")
-    DB_USER = os.getenv("NEO4J_USER")
-    DB_PASS = os.getenv("NEO4J_PASS")
-
-    # .env validation
-    assert DB_HOST is not None and \
-        DB_PORT is not None and \
-        DB_USER is not None and \
-        DB_PASS is not None, \
-        "INVALID .env"
-
-    # db connection
-    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
-
+def main(driver: Driver) -> None:
     # Pandas
     logging.info("Querying and building the dataframe...")
     with driver.session() as session:
@@ -393,7 +403,7 @@ if __name__ == '__main__':
     # PageRanks
     logging.info("Computing pageranks...")
     for percentile in [0, 20, 50, 75, 90, 95, 99, 99.5, 99.9]:
-        pg_thingy(df, G, percentile, 100)
+        do_the_things(df, G, percentile, 100)
 
     ranges = [
         (0, 5),
@@ -413,6 +423,34 @@ if __name__ == '__main__':
         (99.9, 99.95)
     ]
     for lp, hp in ranges:
-        pg_thingy(df, G, lp, hp)
+        do_the_things(df, G, lp, hp)
+
+
+if __name__ == '__main__':
+    # Logging setup
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # .env read
+    load_dotenv()
+    DB_HOST = os.getenv("NEO4J_HOST")
+    DB_PORT = os.getenv("NEO4J_PORT")
+    DB_USER = os.getenv("NEO4J_USER")
+    DB_PASS = os.getenv("NEO4J_PASS")
+
+    # .env validation
+    assert DB_HOST is not None and \
+        DB_PORT is not None and \
+        DB_USER is not None and \
+        DB_PASS is not None, \
+        "INVALID .env"
+
+    # db connection
+    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
+
+    main(driver)
 
     logging.info("DONE!")
