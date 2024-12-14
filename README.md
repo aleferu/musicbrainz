@@ -43,9 +43,7 @@ They must be executed in the following order (the subitems are the files generat
 
 ## Paper stats:
 
-- `post_data/acp.ipynb` for popularity and PageRank correlation.
-- `post_data/clustering_coefficients.py` for clustering coef.
-- `post_data/connected_components.py` for connected components.
+- `post_data/pg_clust_triangles_conncomp.py` for popularity and PageRank correlation, connected components, clustering coefficient and triangles.
 
 ## PyG experiments
 
