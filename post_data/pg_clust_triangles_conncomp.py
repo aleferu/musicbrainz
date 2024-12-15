@@ -272,4 +272,6 @@ if __name__ == '__main__':
 
     main(driver)
 
+    driver.close()
+
     logging.info("DONE!")
