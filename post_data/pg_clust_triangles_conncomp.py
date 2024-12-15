@@ -141,9 +141,9 @@ def main(driver: Driver) -> None:
     logging.info(f"Correlation p_value: {p_value}. Significative? {p_value < 0.05}")  # type: ignore
 
     # Scaling
-    stdscaler = MinMaxScaler()
-    df["listeners_scaled"] = stdscaler.fit_transform(df[["listeners"]])
-    df["playcount_scaled"] = stdscaler.fit_transform(df[["playcount"]])
+    mmscaler = MinMaxScaler()
+    df["listeners_scaled"] = mmscaler.fit_transform(df[["listeners"]])
+    df["playcount_scaled"] = mmscaler.fit_transform(df[["playcount"]])
 
     # Pre-cleaning
     fig_path = "img/listeners_playcount_pre.png"
@@ -159,8 +159,8 @@ def main(driver: Driver) -> None:
     # Cleaning
     df = df[df["listeners_scaled"] <= 0.8]
     df = df[df["playcount_scaled"] <= 0.6]
-    df["listeners_scaled"] = stdscaler.fit_transform(df[["listeners"]])
-    df["playcount_scaled"] = stdscaler.fit_transform(df[["playcount"]])
+    df["listeners_scaled"] = mmscaler.fit_transform(df[["listeners"]])
+    df["playcount_scaled"] = mmscaler.fit_transform(df[["playcount"]])
     assert type(df) == pd.DataFrame, "LSP"
 
     logging.info(f"Found {len(df)} artists after cleanup.")
@@ -188,7 +188,7 @@ def main(driver: Driver) -> None:
     pca_fitter = PCA(1)
     pca = pca_fitter.fit_transform(df[["listeners_scaled", "playcount_scaled"]])
     df["popularity"] = pca
-    pca_scaled = stdscaler.fit_transform(pca)
+    pca_scaled = mmscaler.fit_transform(pca)
     df["popularity_scaled"] = pca_scaled
 
     var_explained = pca_fitter.explained_variance_ratio_[0]
