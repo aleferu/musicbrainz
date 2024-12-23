@@ -48,11 +48,11 @@ dependencies:
   - brotli-python=1.1.0=py312h2ec8cdc_2
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.2=heb4867d_0
-  - ca-certificates=2024.8.30=hbcca054_0
+  - ca-certificates=2024.12.14=hbcca054_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cairo=1.18.0=hebfffa5_3
-  - certifi=2024.8.30=pyhd8ed1ab_0
+  - certifi=2024.12.14=pyhd8ed1ab_0
   - cffi=1.17.1=py312h06ac9bb_0
   - charset-normalizer=3.4.0=pyhd8ed1ab_0
   - click=8.1.7=unix_pyh707e725_0
@@ -262,7 +262,7 @@ dependencies:
   - openh264=2.3.1=hcb278e6_2
   - openjpeg=2.5.2=h488ebb8_0
   - openldap=2.6.8=hedd0468_0
-  - openssl=3.3.2=hb9d3cd8_0
+  - openssl=3.4.0=hb9d3cd8_0
   - orc=2.0.2=h690cf93_1
   - overrides=7.7.0=pyhd8ed1ab_0
   - p11-kit=0.24.1=hc5aa10d_0
@@ -271,6 +271,7 @@ dependencies:
   - pandocfilters=1.5.0=pyhd8ed1ab_0
   - parso=0.8.4=pyhd8ed1ab_0
   - partd=1.4.2=pyhd8ed1ab_0
+  - patsy=1.0.1=pyhd8ed1ab_1
   - pcre2=10.44=hba22ea6_2
   - pexpect=4.9.0=pyhd8ed1ab_0
   - pickleshare=0.7.5=py_1003
@@ -305,6 +306,8 @@ dependencies:
   - pytorch=2.4.1=py3.12_cuda12.1_cudnn9.1.0_0
   - pytorch-cuda=12.1=ha16c6d3_5
   - pytorch-mutex=1.0=cuda
+  - pytorch-scatter=2.1.2=py312_torch_2.4.0_cu121
+  - pytorch-sparse=0.6.18=py312_torch_2.4.0_cu121
   - pytz=2024.1=pyhd8ed1ab_0
   - pyyaml=6.0.2=py312h66e93f0_1
   - pyzmq=26.2.0=py312hbf22597_2
@@ -320,6 +323,8 @@ dependencies:
   - s2n=1.5.5=h3931f03_0
   - scikit-learn=1.5.2=py312h7a48858_1
   - scipy=1.14.1=py312h7d485d2_0
+  - seaborn=0.13.2=hd8ed1ab_3
+  - seaborn-base=0.13.2=pyhd8ed1ab_3
   - send2trash=1.8.3=pyh0d859eb_0
   - setuptools=75.1.0=pyhd8ed1ab_0
   - six=1.16.0=pyh6c4a22f_0
@@ -329,6 +334,7 @@ dependencies:
   - soupsieve=2.5=pyhd8ed1ab_1
   - sqlalchemy=2.0.35=py312h66e93f0_0
   - stack_data=0.6.2=pyhd8ed1ab_0
+  - statsmodels=0.14.4=py312hc0a28a1_0
   - svt-av1=1.4.1=hcb278e6_0
   - sympy=1.13.3=pyh2585a3b_104
   - tbb=2021.13.0=h84d6215_0
