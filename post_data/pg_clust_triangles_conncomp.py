@@ -4,15 +4,11 @@
 from neo4j import GraphDatabase, basic_auth, Driver
 from dotenv import load_dotenv
 import pandas as pd
-from sklearn.decomposition import PCA
 import os
-from sklearn.preprocessing import MinMaxScaler
 import networkx as nx
 from scipy.stats import pearsonr
-import matplotlib.pyplot as plt
 import logging
 import numpy as np
-from collections import Counter
 
 
 def apply_custom_cumsum(df: pd.DataFrame) -> None:
@@ -118,81 +114,12 @@ def main(driver: Driver) -> None:
     with driver.session() as session:
         query = """
             MATCH (n:Artist {in_last_fm: true})-[:COLLAB_WITH]->()
-            WITH DISTINCT(n) AS n
-            OPTIONAL MATCH (n)-[:HAS_TAG]->(t:Tag)
-            WITH
-                n,
-                COLLECT(t.name) AS T0
-            OPTIONAL MATCH (n)-[:WORKED_IN]->(:Track)-[:HAS_TAG]->(t:Tag)
-            WITH
-                n,
-                T0,
-                COLLECT(t.name) AS T1
-            WITH
-                n,
-                T0 + T1 AS TAGS
-            RETURN n.main_id AS main_id, n.listeners AS listeners, n.playcount AS playcount, TAGS as tags
+            WITH DISTINCT(n)
+            RETURN n.main_id AS main_id, n.popularity_scaled as popularity_scaled
         """
         q_result = session.run(query)
         df = pd.DataFrame(q_result.data())
     logging.info(f"Found {len(df)} artists")
-    r, p_value = pearsonr(df.listeners, df.playcount)
-    logging.info(f"Correlation between listeners and playcount: {r}.")
-    logging.info(f"Correlation p_value: {p_value}. Significative? {p_value < 0.05}")  # type: ignore
-
-    # Scaling
-    mmscaler = MinMaxScaler()
-    df["listeners_scaled"] = mmscaler.fit_transform(df[["listeners"]])
-    df["playcount_scaled"] = mmscaler.fit_transform(df[["playcount"]])
-
-    # Pre-cleaning
-    fig_path = "img/listeners_playcount_pre.png"
-    logging.info(f"Showing results in {fig_path}")
-    plt.figure(figsize=(10, 10))
-    plt.scatter(df.listeners_scaled, df.playcount_scaled, color="blue", marker="x", label="Data")
-    plt.legend()
-    plt.title("Listeners vs Playcount")
-    plt.xlabel("Listeners")
-    plt.ylabel("Playcount")
-    plt.savefig(fig_path)
-
-    # Cleaning
-    df = df[df["listeners_scaled"] <= 0.8]
-    df = df[df["playcount_scaled"] <= 0.6]
-    df["listeners_scaled"] = mmscaler.fit_transform(df[["listeners"]])
-    df["playcount_scaled"] = mmscaler.fit_transform(df[["playcount"]])
-    assert type(df) == pd.DataFrame, "LSP"
-
-    logging.info(f"Found {len(df)} artists after cleanup.")
-    r, p_value = pearsonr(df.listeners, df.playcount)
-    logging.info(f"Correlation between listeners and playcount: {r}.")
-    logging.info(f"Correlation p_value: {p_value}. Significative? {p_value < 0.05}")  # type: ignore
-
-    # Post-cleaning
-    fig_path = "img/listeners_playcount_post.png"
-    logging.info(f"Showing results in {fig_path}")
-    plt.figure(figsize=(10, 10))
-    plt.scatter(df.listeners_scaled, df.playcount_scaled, color="blue", marker="x", label="Data")
-    plt.legend()
-    plt.title("Listeners vs Playcount")
-    plt.xlabel("Listeners")
-    plt.ylabel("Playcount")
-    plt.savefig(fig_path)
-
-    # Main genre
-    df["main_tag"] = df["tags"].map(
-        lambda x: Counter(x).most_common(1)[0][0] if x else "No data"
-    )
-
-    # PCA
-    pca_fitter = PCA(1)
-    pca = pca_fitter.fit_transform(df[["listeners_scaled", "playcount_scaled"]])
-    df["popularity"] = pca
-    pca_scaled = mmscaler.fit_transform(pca)
-    df["popularity_scaled"] = pca_scaled
-
-    var_explained = pca_fitter.explained_variance_ratio_[0]
-    logging.info(f"Found a principal component that explains {var_explained} of the variance.")
 
     # Graph
     logging.info("Generating graph...")
@@ -225,6 +152,15 @@ def main(driver: Driver) -> None:
         do_the_things(df, G, percentile, 100)
 
     ranges = [
+        (0, 100),
+        (20, 100),
+        (50, 100),
+        (75, 100),
+        (90, 100),
+        (95, 100),
+        (99, 100),
+        (99.5, 100),
+        (99.9, 100),
         (0, 5),
         (5, 10),
         (10, 15),
