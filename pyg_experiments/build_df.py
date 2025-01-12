@@ -362,6 +362,104 @@ def build_linked_to_tensor():
     driver.close()
 
 
+def build_last_fm_match_tensor():
+    artist_map = get_artist_map()
+    logging.info("Building last_fm_match tensor...")
+    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
+    count = get_x_count("()-[:LAST_FM_MATCH]->()", driver)
+    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    with driver.session() as session:
+        query = """
+            MATCH (n)-[r:LAST_FM_MATCH]->(m)
+            WHERE n < m
+            RETURN
+                n.main_id AS artist0_id,
+                m.main_id AS artist1_id,
+                r.weight as weight
+            ;
+        """
+        q_result = session.run(query)
+        i = 0
+        for record in q_result:
+            artist0_idx = artist_map[record["artist0_id"]]
+            artist1_idx = artist_map[record["artist1_id"]]
+            weight = record["weight"]
+            result_tensor[i, 0] = artist0_idx
+            result_tensor[i, 1] = artist1_idx
+            attr_tensor[i] = weight
+            result_tensor[i + 1, 0] = artist1_idx
+            result_tensor[i + 1, 1] = artist0_idx
+            attr_tensor[i + 1] = weight
+            i += 2
+    logging.info("Saving last_fm_match tensor...")
+    torch.save(result_tensor, "./pyg_experiments/ds/last_fm_match.pt")
+    logging.info("Saving last_fm_match attr tensor...")
+    torch.save(attr_tensor, "./pyg_experiments/ds/last_fm_match_attr.pt")
+    logging.info("last_fm_match tensor done")
+    driver.close()
+
+
+def build_tags_has_tag_tensor_artists():
+    artist_map = get_artist_map()
+    tag_map = get_tag_map()
+    logging.info("Building tags and has_tag tensors for artists...")
+    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
+    count = get_x_count("()-[:TAGS]->(:Artist)", driver)
+    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    with driver.session() as session:
+        query = """
+            MATCH (n:Tag)-[:TAGS]->(m:Artist)
+            RETURN
+                n.id AS tag_id,
+                m.main_id AS artist_id
+            ;
+        """
+        q_result = session.run(query)
+        for i, record in enumerate(q_result):
+            tag_idx = tag_map[record["tag_id"]]
+            artist_idx = artist_map[record["artist_id"]]
+            result_tensor[i, 0] = tag_idx
+            result_tensor[i, 1] = artist_idx
+    logging.info("Saving tags tensor for artists...")
+    torch.save(result_tensor, "./pyg_experiments/ds/tags_artists.pt")
+    logging.info("Saving has_tag tensor for artists...")
+    result_tensor[:, [0, 1]] = result_tensor[:, [1, 0]]
+    torch.save(result_tensor, "./pyg_experiments/ds/has_tag_artists.pt")
+    logging.info("tags and has_tag tensors for artists done")
+    driver.close()
+
+
+def build_tags_has_tag_tensor_tracks():
+    track_map = get_track_map()
+    tag_map = get_tag_map()
+    logging.info("Building tags and has_tag tensors for tracks...")
+    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
+    count = get_x_count("()-[:TAGS]->(:Track)", driver)
+    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    with driver.session() as session:
+        query = """
+            MATCH (n:Tag)-[:TAGS]->(m:Track)
+            RETURN
+                n.id AS tag_id,
+                m.id AS track_id
+            ;
+        """
+        q_result = session.run(query)
+        for i, record in enumerate(q_result):
+            tag_idx = tag_map[record["tag_id"]]
+            track_idx = track_map[record["track_id"]]
+            result_tensor[i, 0] = tag_idx
+            result_tensor[i, 1] = track_idx
+    logging.info("Saving tags tensor for tracks...")
+    torch.save(result_tensor, "./pyg_experiments/ds/tags_tracks.pt")
+    logging.info("Saving has_tag tensor for tracks...")
+    result_tensor[:, [0, 1]] = result_tensor[:, [1, 0]]
+    torch.save(result_tensor, "./pyg_experiments/ds/has_tag_tracks.pt")
+    logging.info("tags and has_tag tensors for tracks done")
+    driver.close()
+
+
 def multiprocess_stuff(*jobs: multiprocessing.Process):
     for job in jobs:
         job.start()
@@ -385,6 +483,9 @@ def main():
         multiprocessing.Process(target=build_musically_related_to_tensor),
         multiprocessing.Process(target=build_personally_related_to_tensor),
         multiprocessing.Process(target=build_linked_to_tensor),
+        multiprocessing.Process(target=build_last_fm_match_tensor),
+        multiprocessing.Process(target=build_tags_has_tag_tensor_artists),
+        multiprocessing.Process(target=build_tags_has_tag_tensor_tracks),
     )
 
 
