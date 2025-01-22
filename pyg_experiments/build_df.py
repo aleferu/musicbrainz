@@ -91,7 +91,7 @@ def build_artist_tensor():
     artist_map = get_artist_map()
     logging.info("Building artist tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(artist_map), 15 + 1), dtype=torch.float16)  # See PyG_DS for 15 explained
+    result_tensor = torch.empty((len(artist_map), 15 + 1), dtype=torch.float32)  # See PyG_DS for 15 explained
     with driver.session() as session:
         query = """
             MATCH (n:Artist)
@@ -142,7 +142,7 @@ def build_track_tensor():
     track_map = get_track_map()
     logging.info("Building track tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(track_map), 3 + 1), dtype=torch.float16)  # See PyG_DS for 3 explained
+    result_tensor = torch.empty((len(track_map), 3 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
     with driver.session() as session:
         query = """
             MATCH (n:Track)
@@ -175,7 +175,7 @@ def build_track_tensor():
 def build_tag_tensor():
     tag_map = get_tag_map()
     logging.info("Building tag tensor...")
-    result_tensor = torch.ones((len(tag_map), 1), dtype=torch.float16)
+    result_tensor = torch.ones((len(tag_map), 1), dtype=torch.float32)
     torch.save(result_tensor, "./pyg_experiments/ds/tags.pt")
     logging.info("Tag tensor done")
 
@@ -186,7 +186,7 @@ def build_worked_in_by_tensor():
     logging.info("Building worked_in and worked_by tensors...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:WORKED_IN]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Artist)-[:WORKED_IN]->(m:Track)
@@ -215,8 +215,8 @@ def build_collab_with_tensor():
     logging.info("Building collab_with tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:COLLAB_WITH]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
-    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n)-[r:COLLAB_WITH]->(m)
@@ -253,8 +253,8 @@ def build_musically_related_to_tensor():
     logging.info("Building musically_related_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:MUSICALLY_RELATED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
-    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n)-[r:MUSICALLY_RELATED_TO]->(m)
@@ -291,8 +291,8 @@ def build_personally_related_to_tensor():
     logging.info("Building personally_related_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:PERSONALLY_RELATED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
-    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n)-[r:PERSONALLY_RELATED_TO]->(m)
@@ -329,8 +329,8 @@ def build_linked_to_tensor():
     logging.info("Building linked_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:LINKED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
-    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n)-[r:LINKED_TO]->(m)
@@ -367,8 +367,8 @@ def build_last_fm_match_tensor():
     logging.info("Building last_fm_match tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:LAST_FM_MATCH]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
-    attr_tensor = torch.empty((count, 1), dtype=torch.float16)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n)-[r:LAST_FM_MATCH]->(m)
@@ -406,7 +406,7 @@ def build_tags_has_tag_tensor_artists():
     logging.info("Building tags and has_tag tensors for artists...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:TAGS]->(:Artist)", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Tag)-[:TAGS]->(m:Artist)
@@ -436,7 +436,7 @@ def build_tags_has_tag_tensor_tracks():
     logging.info("Building tags and has_tag tensors for tracks...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:TAGS]->(:Track)", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.int32)
+    result_tensor = torch.empty((count, 2), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Tag)-[:TAGS]->(m:Track)
