@@ -7,3 +7,4 @@ __pycache__/
 pyrightconfig.json
 img/
 .ipynb_checkpoints/
+*.pth
