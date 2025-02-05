@@ -175,7 +175,10 @@ def build_track_tensor():
 def build_tag_tensor():
     tag_map = get_tag_map()
     logging.info("Building tag tensor...")
-    result_tensor = torch.ones((len(tag_map), 1), dtype=torch.float32)
+    result_tensor = torch.zeros((len(tag_map), len(tag_map) + 1), dtype=torch.float32)
+    for i in range(len(tag_map)):
+        result_tensor[i, i] = 1.0
+    result_tensor[:, len(tag_map)] = 1.0
     torch.save(result_tensor, "./pyg_experiments/ds/tags.pt")
     logging.info("Tag tensor done")
 
