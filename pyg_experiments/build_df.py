@@ -189,7 +189,7 @@ def build_worked_in_by_tensor():
     logging.info("Building worked_in and worked_by tensors...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:WORKED_IN]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Artist)-[:WORKED_IN]->(m:Track)
@@ -202,12 +202,12 @@ def build_worked_in_by_tensor():
         for i, record in enumerate(q_result):
             artist_idx = artist_map[record["artist_id"]]
             track_idx = track_map[record["track_id"]]
-            result_tensor[i, 0] = artist_idx
-            result_tensor[i, 1] = track_idx
+            result_tensor[0, i] = artist_idx
+            result_tensor[1, i] = track_idx
     logging.info("Saving worked_in tensor...")
     torch.save(result_tensor, "./pyg_experiments/ds/worked_in.pt")
     logging.info("Saving worked_by tensor...")
-    result_tensor[:, [0, 1]] = result_tensor[:, [1, 0]]
+    result_tensor[[0, 1], :] = result_tensor[[1, 0], :]
     torch.save(result_tensor, "./pyg_experiments/ds/worked_by.pt")
     logging.info("worked_in and worked_by tensors done")
     driver.close()
@@ -218,7 +218,7 @@ def build_collab_with_tensor():
     logging.info("Building collab_with tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:COLLAB_WITH]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
@@ -236,11 +236,11 @@ def build_collab_with_tensor():
             artist0_idx = artist_map[record["artist0_id"]]
             artist1_idx = artist_map[record["artist1_id"]]
             count = record["count"]
-            result_tensor[i, 0] = artist0_idx
-            result_tensor[i, 1] = artist1_idx
+            result_tensor[0, i] = artist0_idx
+            result_tensor[1, i] = artist1_idx
             attr_tensor[i] = count
-            result_tensor[i + 1, 0] = artist1_idx
-            result_tensor[i + 1, 1] = artist0_idx
+            result_tensor[0, i + 1] = artist1_idx
+            result_tensor[1, i + 1] = artist0_idx
             attr_tensor[i + 1] = count
             i += 2
     logging.info("Saving collab_with tensor...")
@@ -256,7 +256,7 @@ def build_musically_related_to_tensor():
     logging.info("Building musically_related_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:MUSICALLY_RELATED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
@@ -274,11 +274,11 @@ def build_musically_related_to_tensor():
             artist0_idx = artist_map[record["artist0_id"]]
             artist1_idx = artist_map[record["artist1_id"]]
             count = record["count"]
-            result_tensor[i, 0] = artist0_idx
-            result_tensor[i, 1] = artist1_idx
+            result_tensor[0, i] = artist0_idx
+            result_tensor[1, i] = artist1_idx
             attr_tensor[i] = count
-            result_tensor[i + 1, 0] = artist1_idx
-            result_tensor[i + 1, 1] = artist0_idx
+            result_tensor[0, i + 1] = artist1_idx
+            result_tensor[1, i + 1] = artist0_idx
             attr_tensor[i + 1] = count
             i += 2
     logging.info("Saving musically_related_to tensor...")
@@ -294,7 +294,7 @@ def build_personally_related_to_tensor():
     logging.info("Building personally_related_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:PERSONALLY_RELATED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
@@ -312,11 +312,11 @@ def build_personally_related_to_tensor():
             artist0_idx = artist_map[record["artist0_id"]]
             artist1_idx = artist_map[record["artist1_id"]]
             count = record["count"]
-            result_tensor[i, 0] = artist0_idx
-            result_tensor[i, 1] = artist1_idx
+            result_tensor[0, i] = artist0_idx
+            result_tensor[1, i] = artist1_idx
             attr_tensor[i] = count
-            result_tensor[i + 1, 0] = artist1_idx
-            result_tensor[i + 1, 1] = artist0_idx
+            result_tensor[0, i + 1] = artist1_idx
+            result_tensor[1, i + 1] = artist0_idx
             attr_tensor[i + 1] = count
             i += 2
     logging.info("Saving personally_related_to tensor...")
@@ -332,7 +332,7 @@ def build_linked_to_tensor():
     logging.info("Building linked_to tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:LINKED_TO]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
@@ -350,11 +350,11 @@ def build_linked_to_tensor():
             artist0_idx = artist_map[record["artist0_id"]]
             artist1_idx = artist_map[record["artist1_id"]]
             count = record["count"]
-            result_tensor[i, 0] = artist0_idx
-            result_tensor[i, 1] = artist1_idx
+            result_tensor[0, i] = artist0_idx
+            result_tensor[1, i] = artist1_idx
             attr_tensor[i] = count
-            result_tensor[i + 1, 0] = artist1_idx
-            result_tensor[i + 1, 1] = artist0_idx
+            result_tensor[0, i + 1] = artist1_idx
+            result_tensor[1, i + 1] = artist0_idx
             attr_tensor[i + 1] = count
             i += 2
     logging.info("Saving linked_to tensor...")
@@ -370,7 +370,7 @@ def build_last_fm_match_tensor():
     logging.info("Building last_fm_match tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:LAST_FM_MATCH]->()", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     attr_tensor = torch.empty((count, 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
@@ -388,11 +388,11 @@ def build_last_fm_match_tensor():
             artist0_idx = artist_map[record["artist0_id"]]
             artist1_idx = artist_map[record["artist1_id"]]
             weight = record["weight"]
-            result_tensor[i, 0] = artist0_idx
-            result_tensor[i, 1] = artist1_idx
+            result_tensor[0, i] = artist0_idx
+            result_tensor[1, i] = artist1_idx
             attr_tensor[i] = weight
-            result_tensor[i + 1, 0] = artist1_idx
-            result_tensor[i + 1, 1] = artist0_idx
+            result_tensor[0, i + 1] = artist1_idx
+            result_tensor[1, i + 1] = artist0_idx
             attr_tensor[i + 1] = weight
             i += 2
     logging.info("Saving last_fm_match tensor...")
@@ -409,7 +409,7 @@ def build_tags_has_tag_tensor_artists():
     logging.info("Building tags and has_tag tensors for artists...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:TAGS]->(:Artist)", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Tag)-[:TAGS]->(m:Artist)
@@ -422,12 +422,12 @@ def build_tags_has_tag_tensor_artists():
         for i, record in enumerate(q_result):
             tag_idx = tag_map[record["tag_id"]]
             artist_idx = artist_map[record["artist_id"]]
-            result_tensor[i, 0] = tag_idx
-            result_tensor[i, 1] = artist_idx
+            result_tensor[0, i] = tag_idx
+            result_tensor[1, i] = artist_idx
     logging.info("Saving tags tensor for artists...")
     torch.save(result_tensor, "./pyg_experiments/ds/tags_artists.pt")
     logging.info("Saving has_tag tensor for artists...")
-    result_tensor[:, [0, 1]] = result_tensor[:, [1, 0]]
+    result_tensor[[0, 1], :] = result_tensor[[1, 0], :]
     torch.save(result_tensor, "./pyg_experiments/ds/has_tag_artists.pt")
     logging.info("tags and has_tag tensors for artists done")
     driver.close()
@@ -439,7 +439,7 @@ def build_tags_has_tag_tensor_tracks():
     logging.info("Building tags and has_tag tensors for tracks...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
     count = get_x_count("()-[:TAGS]->(:Track)", driver)
-    result_tensor = torch.empty((count, 2), dtype=torch.long)
+    result_tensor = torch.empty((2, count), dtype=torch.long)
     with driver.session() as session:
         query = """
             MATCH (n:Tag)-[:TAGS]->(m:Track)
@@ -452,12 +452,12 @@ def build_tags_has_tag_tensor_tracks():
         for i, record in enumerate(q_result):
             tag_idx = tag_map[record["tag_id"]]
             track_idx = track_map[record["track_id"]]
-            result_tensor[i, 0] = tag_idx
-            result_tensor[i, 1] = track_idx
+            result_tensor[0, i] = tag_idx
+            result_tensor[1, i] = track_idx
     logging.info("Saving tags tensor for tracks...")
     torch.save(result_tensor, "./pyg_experiments/ds/tags_tracks.pt")
     logging.info("Saving has_tag tensor for tracks...")
-    result_tensor[:, [0, 1]] = result_tensor[:, [1, 0]]
+    result_tensor[[0, 1], :] = result_tensor[[1, 0], :]
     torch.save(result_tensor, "./pyg_experiments/ds/has_tag_tracks.pt")
     logging.info("tags and has_tag tensors for tracks done")
     driver.close()
