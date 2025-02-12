@@ -253,7 +253,7 @@ dependencies:
   - nbformat=5.10.4=pyhd8ed1ab_0
   - ncurses=6.5=he02047a_1
   - neo4j-python-driver=5.25.0=pyhd8ed1ab_0
-  - nest-asyncio=1.6.0=pyhd8ed1ab_0
+  - nest-asyncio=1.6.0=pyhd8ed1ab_1
   - nettle=3.9.1=h7ab15ed_0
   - networkx=3.4=pyhd8ed1ab_0
   - notebook=7.2.2=pyhd8ed1ab_0
