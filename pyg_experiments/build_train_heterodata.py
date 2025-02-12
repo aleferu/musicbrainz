@@ -235,7 +235,6 @@ def cut_at_date(data: HeteroData) -> HeteroData:
     return train_data
 
 
-
 def main():
     full_data = get_full_data()
 
@@ -248,11 +247,16 @@ def main():
 
     logging.info("Saving...")
 
-    result_path = path.join(data_folder, f"full_hd.pt")
+    # TODO: ATTR?!?!
+
+    result_path = path.join(data_folder, f"train_hd_{cut_year}_{cut_month}.pt")
+    collab_with_path = path.join(data_folder, f"collab_with_{cut_year}_{cut_month}.pt")
     if result is None:
         torch.save(full_data, result_path)
+        torch.save(full_data["artist", "collab_with", "artist"].edge_index, collab_with_path)
     else:
         torch.save(result, result_path)
+        torch.save(result["artist", "collab_with", "artist"].edge_index, collab_with_path)
 
     logging.info("Done!")
 
@@ -267,8 +271,8 @@ if __name__ == '__main__':
 
     percentile = 0
 
-    cut_year = None
-    cut_month = None
+    cut_year = 2020
+    cut_month = 3
 
     assert 0 <= percentile <= 1 and (
         (cut_year is None and cut_month is None)
