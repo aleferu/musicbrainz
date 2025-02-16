@@ -71,8 +71,7 @@ def get_full_data() -> HeteroData:
     return data
 
 
-def clean_data(data: HeteroData):
-    logging.info(f"Cleaning data per percentile {percentile}")
+def isolate_artists(data: HeteroData, artists_to_keep: torch.Tensor):
     edge_types = [
         ("artist", "collab_with", "artist"),
         ("artist", "has_tag_artists", "tag"),
@@ -87,6 +86,24 @@ def clean_data(data: HeteroData):
         ("artist", "worked_in", "track")
     ]
 
+    for edge_type in edge_types:
+        edge_index = data[edge_type].edge_index
+        mask = torch.ones(edge_index.shape[1], dtype=torch.bool)
+        if edge_type[0] == "artist":
+            mask &= torch.isin(edge_index[0], artists_to_keep)
+        if edge_type[2] == "artist":
+            mask &= torch.isin(edge_index[1], artists_to_keep)
+
+        filtered_edge_index = edge_index[:, mask]
+        data[edge_type].edge_index = filtered_edge_index
+
+        if hasattr(data[edge_type], "edge_attr"):
+            data[edge_type].edge_attr = data[edge_type].edge_attr[mask]
+
+
+def clean_data(data: HeteroData):
+    logging.info(f"Cleaning data per percentile {percentile}")
+
     # Data
     artist_popularity = data["artist"].x[:, 8]
 
@@ -95,58 +112,8 @@ def clean_data(data: HeteroData):
     selected_artists = artist_popularity >= threshold
     selected_artist_ids = torch.nonzero(selected_artists).squeeze()
 
-    # Mapping
-    old_to_new_artist_idx = torch.zeros(
-        data["artist"].x.shape[0],
-        dtype=torch.long
-    )
-
-    for i, selected_artist_id in enumerate(selected_artist_ids):
-        old_to_new_artist_idx[selected_artist_id] = i
-
-    # Subgraph
-    for edge_type in edge_types:
-        logging.info(f"edge_type: {edge_type}")
-        # Filter edge indices
-        edge_index = data[edge_type].edge_index
-        mask = torch.ones(edge_index.shape[1], dtype=torch.bool)
-        if edge_type[0] == "artist":
-            mask &= torch.isin(edge_index[0], selected_artist_ids)
-        if edge_type[2] == "artist":
-            mask &= torch.isin(edge_index[1], selected_artist_ids)
-
-        filtered_edge_index = edge_index[:, mask]
-
-        if edge_type[0] == "artist":  # Reindex source node
-            filtered_edge_index[0] = old_to_new_artist_idx[filtered_edge_index[0]]
-        if edge_type[2] == "artist":  # Reindex destination node
-            filtered_edge_index[1] = old_to_new_artist_idx[filtered_edge_index[1]]
-
-        # Assign filtered edges to subgraph
-        data[edge_type].edge_index = filtered_edge_index
-
-        # Handle edge attributes if they exist
-        if hasattr(data[edge_type], "edge_attr"):
-            try:
-                data[edge_type].edge_attr = data[edge_type].edge_attr[mask]
-            except IndexError as e:
-                logging.info(f"IndexError for {edge_type}: {e}")
-        else:
-            logging.info(f"No edge_attr for {edge_type}")
-
-    # Nodes filtering
-    data["artist"].x = data["artist"].x[selected_artist_ids]
-    # data["track"].x = data["track"].x
-    # data["tag"].x = data["tag"].x
-
-    # Check the shape of the filtered (or not) nodes and edges
-    for edge_type in edge_types:
-        logging.info(f"Edge type: {edge_type}, edge_index shape: {data[edge_type].edge_index.shape}")
-
-    # Check the artist features (should only have the selected artists)
-    logging.info(f"  Subgraph artist tensor shape: {data["artist"].x.shape}")
-    logging.info(f"  Subgraph track tensor shape: {data["track"].x.shape}")
-    logging.info(f"  Subgraph tag tensor shape: {data["tag"].x.shape}")
+    logging.info("  Isolating artists")
+    isolate_artists(data, selected_artist_ids)
 
     if data.validate():
         logging.info("  Data validation after percentile cleanup successful!")
@@ -169,16 +136,23 @@ def cut_at_date(data: HeteroData) -> HeteroData:
     with open(path.join(data_folder, "track_map.pkl"), "rb") as in_file:
         track_map = pickle.load(in_file)
 
-    # Subgraph definition
+    # Masks definition
     train_tracks_pyg_t = torch.tensor([track_map[track_id] for track_id in train_tracks_neo4j])
+    track_mask = torch.zeros(data['track'].x.size(0), dtype=torch.bool)
+    track_mask[train_tracks_pyg_t] = True
+
     train_artists_pyg = data["artist", "worked_in", "track"].edge_index[0, :][
         torch.isin(data["artist", "worked_in", "track"].edge_index[1, :], train_tracks_pyg_t)
     ]
 
+    # Subgraph definition
     train_data = data.subgraph({
-        "track": train_tracks_pyg_t,
-        "artist": train_artists_pyg
+        "track": track_mask
     })
+
+    # Isolate artists
+    logging.info("  Isolating artists")
+    isolate_artists(train_data, train_artists_pyg)
 
     # Initial edges to consider
     collab_with_edge_index = train_data["artist", "collab_with", "artist"].edge_index[:, ::2]
@@ -246,8 +220,6 @@ def main():
         result = cut_at_date(full_data)
 
     logging.info("Saving...")
-
-    # TODO: ATTR?!?!
 
     result_path = path.join(data_folder, f"train_hd_{cut_year}_{cut_month}.pt")
     collab_with_path = path.join(data_folder, f"collab_with_{cut_year}_{cut_month}.pt")
