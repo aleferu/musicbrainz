@@ -229,22 +229,21 @@ def main():
     if percentile > 0:
         clean_data(full_data)
 
-    result = None
+    logging.info("Saving full graph...")
+    full_path = path.join(data_folder, f"full_hd_{percentile}.pt")
+    torch.save(full_data, full_path)
+
     if cut_year is not None:
         result = cut_at_date(full_data)
 
-    logging.info("Saving...")
+        logging.info("Saving training graph...")
 
-    result_path = path.join(data_folder, f"train_hd_{cut_year}_{cut_month}.pt")
-    collab_with_path = path.join(data_folder, f"collab_with_{cut_year}_{cut_month}.pt")
-    if result is None:
-        torch.save(full_data, result_path)
-        torch.save(full_data["artist", "collab_with", "artist"].edge_index, collab_with_path)
-    else:
+        result_path = path.join(data_folder, f"train_hd_{cut_year}_{cut_month}_{percentile}.pt")
+        collab_with_path = path.join(data_folder, f"collab_with_{cut_year}_{cut_month}_{percentile}.pt")
         torch.save(result, result_path)
         torch.save(result["artist", "collab_with", "artist"].edge_index, collab_with_path)
 
-    logging.info("Done!")
+        logging.info("Done!")
 
 
 if __name__ == '__main__':
