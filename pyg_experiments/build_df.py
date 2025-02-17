@@ -142,7 +142,7 @@ def build_track_tensor():
     track_map = get_track_map()
     logging.info("Building track tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(track_map), 3 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
+    result_tensor = torch.empty((len(track_map), 4 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
     with driver.session() as session:
         query = """
             MATCH (n:Track)
@@ -155,7 +155,8 @@ def build_track_tensor():
                 id,
                 popularity_scaled,
                 year,
-                CASE WHEN month <= 6 THEN 1 ELSE 0 END AS sem_1,
+                CASE WHEN month = 0 THEN 0 ELSE 1 END AS month_known,
+                CASE WHEN month > 0 AND month <= 6 THEN 1 ELSE 0 END AS sem_1,
                 1
             ;
         """
@@ -164,8 +165,9 @@ def build_track_tensor():
             track_idx = track_map[record["id"]]
             result_tensor[track_idx, 0]  = record["popularity_scaled"]
             result_tensor[track_idx, 1]  = record["year"]
-            result_tensor[track_idx, 2] = record["sem_1"]
-            result_tensor[track_idx, 3] = 1
+            result_tensor[track_idx, 2]  = record["month_known"]
+            result_tensor[track_idx, 3] = record["sem_1"]
+            result_tensor[track_idx, 4] = 1
     logging.info("Saving track tensor...")
     torch.save(result_tensor, "./pyg_experiments/ds/tracks.pt")
     logging.info("Track tensor done")
