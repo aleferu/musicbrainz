@@ -115,8 +115,20 @@ def clean_data(data: HeteroData):
     logging.info("  Isolating artists")
     isolate_artists(data, selected_artist_ids)
 
+    logging.info("  Extracting subgraph")
+    track_mask = torch.zeros(data["track"].x.shape[0], dtype=torch.bool)
+    track_mask[
+        torch.unique(data["artist", "worked_in", "track"].edge_index[1, :])
+    ] = True
+    logging.info("  Found %d tracks?", track_mask.sum())
+    data = data.subgraph({
+        "track": track_mask
+    })
+
     if data.validate():
         logging.info("  Data validation after percentile cleanup successful!")
+        logging.info("  Number of tracks: %d", data["track"].x.shape[0])
+        logging.info("  Number of collabs: %d", data["artist", "collab_with", "artist"].edge_index.shape[1])
 
 
 def cut_at_date(data: HeteroData) -> HeteroData:
@@ -205,6 +217,8 @@ def cut_at_date(data: HeteroData) -> HeteroData:
 
     if train_data.validate():
         logging.info("  Data validation after date cut successful!")
+        logging.info("  Number of tracks: %d", train_data["track"].x.shape[0])
+        logging.info("  Number of collabs: %d", train_data["artist", "collab_with", "artist"].edge_index.shape[1])
 
     return train_data
 
@@ -241,7 +255,7 @@ if __name__ == '__main__':
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    percentile = 0
+    percentile = 0.1
 
     cut_year = 2020
     cut_month = 3
