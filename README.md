@@ -52,7 +52,7 @@ Can be found at `pyg_experiments/`.
 ## Dates
 
 - Musicbrainz data: `2024-10-31 21:00:49.130771+00`
-- Neo4j: `2024-11-05` to `2024-11-23`.
+- LastFM data: `2024-11-05` to `2024-11-23`.
 
 ## Stats
 
