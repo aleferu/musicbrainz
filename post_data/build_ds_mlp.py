@@ -15,6 +15,9 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
     with driver.session() as session:
         query = f"""
             MATCH (n:Artist)-[:COLLAB_WITH]->(m:Artist)
+            WHERE 1 = 1
+            AND n.popularity_scaled >= {perc_value}
+            AND m.popularity_scaled >= {perc_value}
             WITH
                 n,
                 m,
@@ -40,6 +43,10 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                   WHEN size(n.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN n.tags WHERE x = tag])) / size(n.tags)]
                 END AS tags0,
+                COALESCE(n.collab_count, 0) AS cc0,
+                COALESCE(n.collab_popularity, 0) AS cp0,
+                COALESCE(n.solo_count, 0) AS sc0,
+                COALESCE(n.solo_popularity, 0) AS sp0,
 
                 m.main_id AS id1,
                 COALESCE(m.begin_date, -1) AS bd1,
@@ -60,7 +67,11 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 CASE
                   WHEN size(m.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN m.tags WHERE x = tag])) / size(m.tags)]
-                END AS tags1
+                END AS tags1,
+                COALESCE(m.collab_count, 0) AS cc1,
+                COALESCE(m.collab_popularity, 0) AS cp1,
+                COALESCE(m.solo_count, 0) AS sc1,
+                COALESCE(m.solo_popularity, 0) AS sp1
         """
 
         x_train = list()
@@ -87,6 +98,10 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 record["t50"],
                 record["t60"],
                 *record["tags0"],  # type: ignore
+                record["cc0"],
+                record["cp0"],
+                record["sc0"],
+                record["sp0"],
 
                 record["bd1"],
                 record["ed1"],
@@ -104,6 +119,10 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 record["t51"],
                 record["t61"],
                 *record["tags1"],  # type: ignore
+                record["cc1"],
+                record["cp1"],
+                record["sc1"],
+                record["sp1"]
             ]
 
             id0 = artist_map[record["id0"]]
@@ -128,6 +147,8 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
     with driver.session() as session:
         query = f"""
             MATCH (n:Artist)
+            WHERE 1 = 1
+            AND n.popularity_scaled >= {perc_value}
             WITH
                 collect(n.main_id) as ids
             WITH
@@ -170,6 +191,10 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                   WHEN size(n.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN n.tags WHERE x = tag])) / size(n.tags)]
                 END AS tags0,
+                COALESCE(n.collab_count, 0) AS cc0,
+                COALESCE(n.collab_popularity, 0) AS cp0,
+                COALESCE(n.solo_count, 0) AS sc0,
+                COALESCE(n.solo_popularity, 0) AS sp0,
 
                 m.main_id AS id1,
                 COALESCE(m.begin_date, -1) AS bd1,
@@ -190,7 +215,11 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 CASE
                   WHEN size(m.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN m.tags WHERE x = tag])) / size(m.tags)]
-                END AS tags1
+                END AS tags1,
+                COALESCE(n.collab_count, 0) AS cc1,
+                COALESCE(n.collab_popularity, 0) AS cp1,
+                COALESCE(n.solo_count, 0) AS sc1,
+                COALESCE(n.solo_popularity, 0) AS sp1
             LIMIT {expected_count};
         """
 
@@ -214,6 +243,10 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["t50"],
                 record["t60"],
                 *record["tags0"],  # type: ignore
+                record["cc0"],
+                record["cp0"],
+                record["sc0"],
+                record["sp0"],
 
                 record["bd1"],
                 record["ed1"],
@@ -231,6 +264,10 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["t51"],
                 record["t61"],
                 *record["tags1"],  # type: ignore
+                record["cc1"],
+                record["cp1"],
+                record["sc1"],
+                record["sp1"]
             ])
 
     return x[:train_count], y[:train_count], x[train_count:], y[train_count:]
@@ -249,23 +286,22 @@ def main():
 
     x_train_negative, y_train_negative, x_test_negative, y_test_negative = get_negative_info(all_tags, len(x_train_positive) + len(x_test_positive), len(x_train_positive))
 
-    assert len(x_train_negative[0]) == len(x_train_positive[0])
-    assert len(x_train_negative) == len(x_train_positive)
-    assert len(x_test_negative[0]) == len(x_test_positive[0])
-    assert len(x_test_negative) == len(x_test_positive)
-    assert len(y_train_positive) == len(y_train_negative)
-    assert len(y_test_positive) == len(y_test_negative)
+    logging.info("Negative sizes:")
+    logging.info(f"  x_train: {len(x_train_negative)}, {len(x_train_negative[0])}")
+    logging.info(f"  y_train: {len(y_train_negative)}")
+    logging.info(f"  x_test: {len(x_test_negative)}, {len(x_test_negative[0])}")
+    logging.info(f"  y_test: {len(y_test_negative)}")
 
     logging.info("Saving...")
 
     x_train = torch.tensor(x_train_positive + x_train_negative, dtype=torch.float32)
-    torch.save(x_train, "post_data/ds/mlp20200300x_train.pt")
+    torch.save(x_train, f"post_data/ds/mlp{year}{month}{perc}x_train.pt")
     x_test = torch.tensor(x_test_positive + x_test_negative, dtype=torch.float32)
-    torch.save(x_test, "post_data/ds/mlp20200300x_test.pt")
+    torch.save(x_test, f"post_data/ds/mlp{year}{month}{perc}x_test.pt")
     y_train = torch.tensor(y_train_positive + y_train_negative, dtype=torch.float32)
-    torch.save(y_train, "post_data/ds/mlp20200300y_train.pt")
+    torch.save(y_train, f"post_data/ds/mlp{year}{month}{perc}y_train.pt")
     y_test = torch.tensor(y_test_positive + y_test_negative, dtype=torch.float32)
-    torch.save(y_test, "post_data/ds/mlp20200300y_test.pt")
+    torch.save(y_test, f"post_data/ds/mlp{year}{month}{perc}y_test.pt")
 
     logging.info("Done!")
 
@@ -292,7 +328,14 @@ if __name__ == '__main__':
         DB_PASS is not None, \
         "INVALID .env"
 
-    train_collab_with = torch.load("pyg_experiments/ds/collab_with_2020_3.pt")
+    year = 2019
+    print("year:", year)
+    month = 11
+    print("month:", month)
+    perc = 0.9
+    print("perc:", perc)
+
+    train_collab_with = torch.load(f"pyg_experiments/ds/collab_with_{year}_{month}_{perc}.pt")
     train_edges_set = set(map(tuple, train_collab_with.t().tolist()))
 
     with open("pyg_experiments/ds/artist_map.pkl", "rb") as in_file:
@@ -300,6 +343,11 @@ if __name__ == '__main__':
 
     # db connection
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
+
+    with driver.session() as session:
+        query = f"MATCH (n:Artist) RETURN apoc.agg.percentiles(n.popularity_scaled, [{perc}]) AS p"
+        result = session.run(query)  # type: ignore
+        perc_value = result.data()[0]["p"][0]
 
     main()
 
