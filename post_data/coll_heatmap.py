@@ -9,30 +9,23 @@ from itertools import combinations_with_replacement
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def main(driver: Driver) -> None:
-    # DF
-    logging.info("Getting distinct tags...")
-    query = """
-        MATCH (n:Artist)
-        WITH COLLECT(DISTINCT n.main_tag) AS all_tags
-        RETURN all_tags;
-    """
-    with driver.session() as session:
-        result = session.run(query)
-        all_tags = result.data()[0]["all_tags"]
-        logging.info("Got: %s", ", ".join(all_tags))
+def main(driver: Driver, tags: list[str], filename: str) -> None:
+    combined_tags = [tag for tag in tags if tag != "symphonic" and tag != "classical and ost"]
+    if "symphonic" in tags or "classical and ost" in tags:
+        combined_tags.append("classical/symphonic")
 
     heatmap_data = pd.DataFrame(
-        index=all_tags,
-        columns=all_tags,
+        index=combined_tags,  # type: ignore
+        columns=combined_tags,  # type: ignore
         dtype=int
     ).fillna(0).astype(int)
 
     # Other
     with driver.session() as session:
-        for t0, t1 in combinations_with_replacement(all_tags, 2):
+        for t0, t1 in combinations_with_replacement(tags, 2):
             logging.info("Querying for '%s' and '%s'...", t0, t1)
             query = f"""
                 MATCH (n:Artist {{main_tag: "{t0}"}})-[r:COLLAB_WITH]->(m:Artist {{main_tag: "{t1}"}})
@@ -40,16 +33,31 @@ def main(driver: Driver) -> None:
                 WITH COUNT(r) AS c
                 RETURN toInteger(c) AS c;
             """
-            result = session.run(query)  # type: ignore
-            count = result.data()[0]["c"]
+            if t0 == "a" * 10 or t1 == "a" * 10:
+                count = 0
+            else:
+                result = session.run(query)  # type: ignore
+                count = result.data()[0]["c"]
 
             logging.info("Got: %d", count)
-            heatmap_data.loc[t0, t1] = count
-            heatmap_data.loc[t1, t0] = count
+
+            if t0 == "symphonic" or t0 == "classical and ost":
+                t0_heatmap = "classical/symphonic"
+            else:
+                t0_heatmap = t0
+
+            if t1 == "symphonic" or t1 == "classical and ost":
+                t1_heatmap = "classical/symphonic"
+            else:
+                t1_heatmap = t1
+
+            heatmap_data.loc[t0_heatmap, t1_heatmap] += count
+            heatmap_data.loc[t1_heatmap, t0_heatmap] += count
 
     # Drawing
     logging.info("Generating png...")
-    plt.figure(figsize=(22, 22))
+
+    plt.figure(figsize=(12, 12))
     sns.heatmap(
         heatmap_data,
         annot=True,
@@ -57,10 +65,79 @@ def main(driver: Driver) -> None:
         xticklabels=True,
         yticklabels=True,
         cbar=True,
-        fmt="d"
+        fmt="d",
+        linewidths=.5,
+        linecolor='black',
+        cbar_kws={"shrink": .8}
     )
-    plt.title("Collaboration between tags")
-    plt.savefig("img/Coll_Tags.png")
+    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    plt.savefig(f"img/{filename}.png")
+
+    mask = np.zeros((len(combined_tags), len(combined_tags)), dtype=bool)
+    mask[np.eye(mask.shape[0], dtype=bool)] = True
+
+    plt.figure(figsize=(12, 12))
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        cmap="coolwarm",
+        xticklabels=True,
+        yticklabels=True,
+        mask=mask,
+        cbar=True,
+        fmt="d",
+        linewidths=.5,
+        linecolor='black',
+        cbar_kws={"shrink": .8}
+    )
+    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    plt.savefig(f"img/{filename}_no_diag.png")
+
+    mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
+    for i in range(len(combined_tags)):
+        mask[i, :i + 1] = False
+
+    plt.figure(figsize=(12, 12))
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        cmap="coolwarm",
+        xticklabels=True,
+        yticklabels=True,
+        mask=mask,
+        cbar=True,
+        fmt="d",
+        linewidths=.5,
+        linecolor='black',
+        cbar_kws={"shrink": .8}
+    )
+    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    plt.savefig(f"img/{filename}_triang.png")
+
+    mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
+    for i in range(len(combined_tags)):
+        mask[i, :i] = False
+
+    plt.figure(figsize=(12, 12))
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        cmap="coolwarm",
+        xticklabels=True,
+        yticklabels=True,
+        mask=mask,
+        cbar=True,
+        fmt="d",
+        linewidths=.5,
+        linecolor='black',
+        cbar_kws={"shrink": .8}
+    )
+    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    plt.savefig(f"img/{filename}_triang_no_diag.png")
 
 
 if __name__ == '__main__':
@@ -88,7 +165,43 @@ if __name__ == '__main__':
     # db connection
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    main(driver)
+    test = ["rock", "pop"] + ["a" * 10] * 10
+
+    good_tags = [
+        "rock",
+        "folk/traditional",
+        "pop",
+        "electronic",
+        "rythm and blues",
+        "indie",
+        "hip-hop",
+        "latin",
+        "classical and ost",
+        "symphonic",
+        "latin_countries"
+    ]
+    bad_tags = [
+        "country",
+        "happy",
+        "romantic",
+        "sad",
+        "avant-garde",
+        "religion",
+        "asian_countries",
+        "english_countries",
+        "sci-fi",
+        "acoustic",
+        "underground",
+        "drum and bass"
+    ]
+
+    main(driver, test, "test")
+
+    main(driver, good_tags, "good_coll_tags")
+
+    main(driver, bad_tags, "bad_coll_tags")
+
+    main(driver, good_tags + bad_tags, "all_coll_tags")
 
     driver.close()
 
