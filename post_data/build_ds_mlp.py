@@ -18,10 +18,15 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
             WHERE 1 = 1
             AND n.popularity_scaled >= {perc_value}
             AND m.popularity_scaled >= {perc_value}
+            OPTIONAL MATCH (n)-[r:LAST_FM_MATCH]->(m)
             WITH
                 n,
                 m,
-                {all_tags} AS all_tags
+                {all_tags} AS all_tags,
+                CASE
+                  WHEN r IS NOT NULL THEN r.weight
+                  ELSE 0
+                END AS lfm
             RETURN
                 n.main_id AS id0,
                 COALESCE(n.begin_date, -1) AS bd0,
@@ -43,10 +48,10 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                   WHEN size(n.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN n.tags WHERE x = tag])) / size(n.tags)]
                 END AS tags0,
-                COALESCE(n.collab_count, 0) AS cc0,
-                COALESCE(n.collab_popularity, 0) AS cp0,
-                COALESCE(n.solo_count, 0) AS sc0,
-                COALESCE(n.solo_popularity, 0) AS sp0,
+                COALESCE(n.collab_count_{year}_{month}, 0) AS cc0,
+                COALESCE(n.collab_popularity_{year}_{month}, 0) AS cp0,
+                COALESCE(n.solo_count_{year}_{month}, 0) AS sc0,
+                COALESCE(n.solo_popularity_{year}_{month}, 0) AS sp0,
 
                 m.main_id AS id1,
                 COALESCE(m.begin_date, -1) AS bd1,
@@ -68,10 +73,12 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                   WHEN size(m.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN m.tags WHERE x = tag])) / size(m.tags)]
                 END AS tags1,
-                COALESCE(m.collab_count, 0) AS cc1,
-                COALESCE(m.collab_popularity, 0) AS cp1,
-                COALESCE(m.solo_count, 0) AS sc1,
-                COALESCE(m.solo_popularity, 0) AS sp1
+                COALESCE(m.collab_count_{year}_{month}, 0) AS cc1,
+                COALESCE(m.collab_popularity_{year}_{month}, 0) AS cp1,
+                COALESCE(m.solo_count_{year}_{month}, 0) AS sc1,
+                COALESCE(m.solo_popularity_{year}_{month}, 0) AS sp1,
+
+                lfm
         """
 
         x_train = list()
@@ -122,7 +129,9 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 record["cc1"],
                 record["cp1"],
                 record["sc1"],
-                record["sp1"]
+                record["sp1"],
+
+                record["lfm"]
             ]
 
             id0 = artist_map[record["id0"]]
@@ -166,10 +175,15 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
             MATCH (n:Artist {{main_id: id0}})
             MATCH (m:Artist {{main_id: id1}})
             WHERE NOT EXISTS((n)-[:COLLAB_WITH]->(m))
+            OPTIONAL MATCH (n)-[r:LAST_FM_MATCH]->(m)
             WITH
                 n,
                 m,
-                {all_tags} AS all_tags
+                {all_tags} AS all_tags,
+                CASE
+                  WHEN r IS NOT NULL THEN r.weight
+                  ELSE 0
+                END AS lfm
             RETURN
                 n.main_id AS id0,
                 COALESCE(n.begin_date, -1) AS bd0,
@@ -216,10 +230,13 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                   WHEN size(m.tags) = 0 THEN [tag IN all_tags | 0]
                   ELSE  [tag IN all_tags | toFloat(size([x IN m.tags WHERE x = tag])) / size(m.tags)]
                 END AS tags1,
-                COALESCE(n.collab_count, 0) AS cc1,
-                COALESCE(n.collab_popularity, 0) AS cp1,
-                COALESCE(n.solo_count, 0) AS sc1,
-                COALESCE(n.solo_popularity, 0) AS sp1
+                COALESCE(m.collab_count_{year}_{month}, 0) AS cc1,
+                COALESCE(m.collab_popularity_{year}_{month}, 0) AS cp1,
+                COALESCE(m.solo_count_{year}_{month}, 0) AS sc1,
+                COALESCE(m.solo_popularity_{year}_{month}, 0) AS sp1,
+
+                lfm
+
             LIMIT {expected_count};
         """
 
@@ -267,7 +284,9 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["cc1"],
                 record["cp1"],
                 record["sc1"],
-                record["sp1"]
+                record["sp1"],
+
+                record["lfm"]
             ])
 
     return x[:train_count], y[:train_count], x[train_count:], y[train_count:]
@@ -295,13 +314,13 @@ def main():
     logging.info("Saving...")
 
     x_train = torch.tensor(x_train_positive + x_train_negative, dtype=torch.float32)
-    torch.save(x_train, f"post_data/ds/mlp{year}{month}{perc}x_train.pt")
+    torch.save(x_train, f"pyg_experiments/ds/mlp{year}{month}{perc}x_train.pt")
     x_test = torch.tensor(x_test_positive + x_test_negative, dtype=torch.float32)
-    torch.save(x_test, f"post_data/ds/mlp{year}{month}{perc}x_test.pt")
+    torch.save(x_test, f"pyg_experiments/ds/mlp{year}{month}{perc}x_test.pt")
     y_train = torch.tensor(y_train_positive + y_train_negative, dtype=torch.float32)
-    torch.save(y_train, f"post_data/ds/mlp{year}{month}{perc}y_train.pt")
+    torch.save(y_train, f"pyg_experiments/ds/mlp{year}{month}{perc}y_train.pt")
     y_test = torch.tensor(y_test_positive + y_test_negative, dtype=torch.float32)
-    torch.save(y_test, f"post_data/ds/mlp{year}{month}{perc}y_test.pt")
+    torch.save(y_test, f"pyg_experiments/ds/mlp{year}{month}{perc}y_test.pt")
 
     logging.info("Done!")
 

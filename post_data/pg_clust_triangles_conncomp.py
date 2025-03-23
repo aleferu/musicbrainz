@@ -147,38 +147,9 @@ def main(driver: Driver) -> None:
     df.reset_index(drop=True, inplace=True)
 
     # Stats in general
-    logging.info("Computing stats for all the data...")
-    for percentile in [0, 20, 50, 75, 90, 95, 99, 99.5, 99.9]:
+    logging.info("Computing stats for all the ranges...")
+    for percentile in range(95, -1, -5):
         do_the_things(df, G, percentile, 100)
-
-    ranges = [
-        (0, 100),
-        (20, 100),
-        (50, 100),
-        (75, 100),
-        (90, 100),
-        (95, 100),
-        (99, 100),
-        (99.5, 100),
-        (99.9, 100),
-        (0, 5),
-        (5, 10),
-        (10, 15),
-        (20, 30),
-        (35, 45),
-        (60, 70),
-        (80, 90),
-        (90, 95),
-        (95, 99),
-        (95, 100),
-        (97, 99),
-        (99, 99.5),
-        (99.5, 99.7),
-        (99.8, 99.9),
-        (99.9, 99.95)
-    ]
-    for lp, hp in ranges:
-        do_the_things(df, G, lp, hp)
 
 
 if __name__ == '__main__':
