@@ -55,7 +55,7 @@ Schema visualization (purple -> Artist):
         - *name* (string): Name of the tag.
 
 - **Relationships**:
-    - MusicBrain:
+    - MusicBrainz:
         - *WORKED_IN*: *Artist* to *Track*. Its inverse is *WORKED_BY*.
         - *WORKED_BY*.
         - *COLLAB_WITH*: *Artist* to *Artist*. Its inverse is itself.
