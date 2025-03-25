@@ -3,11 +3,12 @@
 
 import torch
 import pickle
-import pandas as pd
-import dask
-from dask import dataframe as dd
+import pyspark.sql.functions as F
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.types import StructType, StructField, StringType
 import logging
 import numpy as np
+import pandas as pd
 
 
 def get_x_map(filepath: str) -> dict:
@@ -32,15 +33,42 @@ def get_tag_map() -> dict:
 
 
 def build_artists():
-    df = dd.read_csv("data/artist_tags_clean.csv", dtype=str)
-    df["tags"] = df["tags"].str.split(", ")
-    df = df.explode("tags")
     artist_map = get_artist_map()
     tag_map = get_tag_map()
-    df["artist"] = df["artist"].map_partitions(artist_map, meta=("artist", str))
-    df["tags"] = df["tags"].map_partitions(tag_map, meta=("tags", str))
+
+    artist_broadcast = sc.broadcast(artist_map)
+    tag_broadcast = sc.broadcast(tag_map)
+
+    schema = StructType([
+        StructField("artist", StringType(), True),
+        StructField("tags", StringType(), True),
+    ])
+    df = (spark.read.format("csv")
+        .option("mode", "FAILFAST")
+        .option("sep", ",")
+        .option("escape", "\"")
+        .option("schema", schema)
+        .option("lineSep", "\n")
+        .option("header", "true")
+        .load("data/artist_tags_clean.csv")
+    )
+    df = df.dropna(subset="tags")
+
+    tags_col = F.col("tags")
+
+    df = df.withColumn("tags", F.split(tags_col, ", "))
+    df = df.withColumn("tags", F.explode(tags_col))
+
+    def map_artist_tag(row: Row) -> tuple[int, int]:
+        artist_id = artist_broadcast.value.get(row.artist)
+        tag_id = tag_broadcast.value.get(row.tags)
+        return (artist_id, tag_id)
+
+    rdd = df.rdd.map(map_artist_tag)
+
     logging.info("Computing...")
-    arr = df.to_dask_array().compute().T
+    arr = np.array(rdd.collect()).T
+
     logging.info("Done! Artist array of shape: %s", str(arr.shape))
     logging.info("Saving artist tensor...")
     arr = torch.tensor(arr, dtype=torch.long)
@@ -50,17 +78,48 @@ def build_artists():
 
 
 def build_tracks():
-    df = dd.read_csv("data/tracks_no_va_merged_id_clean.csv", dtype=str, blocksize="128M")
-    df["tags"] = df["tags"].str.split(", ")
-    df = df.explode("tags")
-    df = df.dropna(subset="tags")
     track_map = get_track_map()
     tag_map = get_tag_map()
-    df["id"] = df["id"].map_partitions(track_map, meta=("artist", str))
-    df["tags"] = df["tags"].map_partitions(tag_map, meta=("tags", str))
-    df = df[["id", "tags"]]
-    logging.info("Computing...")
-    arr = df.to_dask_array().compute().T
+
+    track_broadcast = sc.broadcast(track_map)
+    tag_broadcast = sc.broadcast(tag_map)
+
+    schema = StructType([
+        StructField("id", StringType(), True),
+        StructField("tags", StringType(), True),
+    ])
+    df = (spark.read.format("csv")
+        .option("mode", "FAILFAST")
+        .option("sep", ",")
+        .option("escape", "\"")
+        .option("schema", schema)
+        .option("lineSep", "\n")
+        .option("header", "true")
+        .load("data/tracks_no_va_merged_id_clean.csv")
+        .select("id", "tags")
+        .repartition(3)
+    )
+    df = df.dropna(subset="tags")
+
+    tags_col = F.col("tags")
+
+    df = df.withColumn("tags", F.split(tags_col, ", "))
+    df = df.withColumn("tags", F.explode(tags_col))
+
+    def map_track_tag(row: Row) -> tuple[int, int]:
+        track_id = track_broadcast.value.get(row.id)
+        tag_id = tag_broadcast.value.get(row.tags)
+        return (track_id, tag_id)
+
+    mapped_df = df.rdd.map(map_track_tag).toDF(["track", "tag"])
+
+    logging.info("Writing...")
+    mapped_df.write.mode("overwrite").parquet("data/track_tag.parquet")
+
+    logging.info("Reading again!")
+    pdf = pd.read_parquet("data/track_tag.parquet")
+    arr = pdf.to_numpy().T
+
     logging.info("Done! Track array of shape: %s", str(arr.shape))
     logging.info("Saving track tensor...")
     arr = torch.tensor(arr, dtype=torch.long)
@@ -69,7 +128,7 @@ def build_tracks():
     torch.save(arr, "pyg_experiments/ds/tags_tracks_mb.pt")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Logging setup
     logging.basicConfig(
         level=logging.INFO,
@@ -77,5 +136,30 @@ if __name__ == '__main__':
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # build_artists()
-    build_tracks()
+    SPARK_MASTER = "local[*]"
+
+    spark = (SparkSession
+        .builder
+        .appName("")  # type: ignore
+        .config("spark.rdd.compress", "true")
+        .config("spark.driver.memory", "2g")
+        .config("spark.executor.memory", "2g")
+        .config("spark.executor.cores", "2")
+        .config("spark.executor.instances", "2")
+        .master(SPARK_MASTER)
+        .getOrCreate()
+    )
+    logging.info(f"Driver memory: {spark.conf.get("spark.driver.memory")}")
+    logging.info(f"Executor memory: {spark.conf.get("spark.executor.memory")}")
+    logging.info(f"Executor cores: {spark.conf.get("spark.executor.cores")}")
+    logging.info(f"Executor instances: {spark.conf.get("spark.executor.instances")}")
+
+    sc = spark.sparkContext
+
+    try:
+        build_artists()
+        build_tracks()
+    except Exception as e:
+        raise e
+    finally:
+        spark.stop()

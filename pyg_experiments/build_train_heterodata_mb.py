@@ -35,11 +35,10 @@ def get_full_data() -> HeteroData:
     logging.info(f"  collab_with index tensor shape: {data["artist", "collab_with", "artist"].edge_index.shape}")
     logging.info(f"  collab_with attr tensor shape: {data["artist", "collab_with", "artist"].edge_attr.shape}")
 
-    # TODO: ADD HAS_TAG
-    # data["artist", "has_tag_artists", "tag"].edge_index = torch.load(path.join(data_folder, "has_tag_artists.pt"), weights_only=True)
-    # data["track", "has_tag_tracks", "tag"].edge_index = torch.load(path.join(data_folder, "has_tag_tracks.pt"), weights_only=True)
-    # logging.info(f"  has_tag_artists index tensor shape: {data["artist", "has_tag_artists", "tag"].edge_index.shape}")
-    # logging.info(f"  has_tag_tracks index tensor shape: {data["track", "has_tag_tracks", "tag"].edge_index.shape}")
+    data["artist", "has_tag_artists", "tag"].edge_index = torch.load(path.join(data_folder, "has_tag_artists_mb.pt"), weights_only=True)
+    data["track", "has_tag_tracks", "tag"].edge_index = torch.load(path.join(data_folder, "has_tag_tracks_mb.pt"), weights_only=True)
+    logging.info(f"  has_tag_artists index tensor shape: {data["artist", "has_tag_artists", "tag"].edge_index.shape}")
+    logging.info(f"  has_tag_tracks index tensor shape: {data["track", "has_tag_tracks", "tag"].edge_index.shape}")
 
     # NO LFM
     # data["artist", "last_fm_match", "artist"].edge_index = torch.load(path.join(data_folder, "last_fm_match.pt"), weights_only=True)
@@ -62,11 +61,10 @@ def get_full_data() -> HeteroData:
     logging.info(f"  personally_related_to index tensor shape: {data["artist", "personally_related_to", "artist"].edge_index.shape}")
     logging.info(f"  personally_related_to attr tensor shape: {data["artist", "personally_related_to", "artist"].edge_attr.shape}")
 
-    # TODO: ADD TAGS
-    # data["tag", "tags_artists", "artist"].edge_index = torch.load(path.join(data_folder, "tags_artists.pt"), weights_only=True)
-    # data["tag", "tags_track", "track"].edge_index = torch.load(path.join(data_folder, "tags_tracks.pt"), weights_only=True)
-    # logging.info(f"  tags_artists index tensor shape: {data["tag", "tags_artists", "artist"].edge_index.shape}")
-    # logging.info(f"  tags_tracks index tensor shape: {data["tag", "tags_track", "track"].edge_index.shape}")
+    data["tag", "tags_artists", "artist"].edge_index = torch.load(path.join(data_folder, "tags_artists_mb.pt"), weights_only=True)
+    data["tag", "tags_track", "track"].edge_index = torch.load(path.join(data_folder, "tags_tracks_mb.pt"), weights_only=True)
+    logging.info(f"  tags_artists index tensor shape: {data["tag", "tags_artists", "artist"].edge_index.shape}")
+    logging.info(f"  tags_tracks index tensor shape: {data["tag", "tags_track", "track"].edge_index.shape}")
 
     data["track", "worked_by", "artist"].edge_index = torch.load(path.join(data_folder, "worked_by.pt"), weights_only=True)
     data["artist", "worked_in", "track"].edge_index = torch.load(path.join(data_folder, "worked_in.pt"), weights_only=True)
@@ -84,7 +82,7 @@ def isolate_artists(data: HeteroData, artists_to_keep: torch.Tensor):
         ("artist", "collab_with", "artist"),
         ("artist", "has_tag_artists", "tag"),
         ("track", "has_tag_tracks", "tag"),
-        ("artist", "last_fm_match", "artist"),
+        # ("artist", "last_fm_match", "artist"),
         ("artist", "linked_to", "artist"),
         ("artist", "musically_related_to", "artist"),
         ("artist", "personally_related_to", "artist"),
@@ -238,7 +236,7 @@ def main():
         clean_data(full_data)
 
     logging.info("Saving full graph...")
-    full_path = path.join(data_folder, f"full_hd_{percentile}.pt")
+    full_path = path.join(data_folder, f"full_hdmb_{percentile}.pt")
     torch.save(full_data, full_path)
 
     if cut_year is not None:
@@ -246,8 +244,8 @@ def main():
 
         logging.info("Saving training graph...")
 
-        result_path = path.join(data_folder, f"train_hd_{cut_year}_{cut_month}_{percentile}.pt")
-        collab_with_path = path.join(data_folder, f"collab_with_{cut_year}_{cut_month}_{percentile}.pt")
+        result_path = path.join(data_folder, f"train_hdmb_{cut_year}_{cut_month}_{percentile}.pt")
+        collab_with_path = path.join(data_folder, f"collab_withmb_{cut_year}_{cut_month}_{percentile}.pt")
         torch.save(result, result_path)
         torch.save(result["artist", "collab_with", "artist"].edge_index, collab_with_path)
 
@@ -262,10 +260,10 @@ if __name__ == '__main__':
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    percentile = 0.1
+    percentile = 0.9
 
-    cut_year = 2020
-    cut_month = 3
+    cut_year = 2021
+    cut_month = 11
 
     assert 0 <= percentile <= 1 and (
         (cut_year is None and cut_month is None)
