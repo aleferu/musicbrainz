@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 
+# ASK
+
 import logging
 import os
 from neo4j import GraphDatabase, basic_auth
@@ -18,7 +20,6 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
             WHERE 1 = 1
             AND n.popularity_scaled >= {perc_value}
             AND m.popularity_scaled >= {perc_value}
-            OPTIONAL MATCH (n)-[r0:LAST_FM_MATCH]->(m)
             OPTIONAL MATCH (n)-[r1:MUSICALLY_RELATED_TO]->(m)
             OPTIONAL MATCH (n)-[r2:PERSONALLY_RELATED_TO]->(m)
             OPTIONAL MATCH (n)-[r3:LINKED_TO]->(m)
@@ -26,10 +27,6 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 n,
                 m,
                 {all_tags} AS all_tags,
-                CASE
-                  WHEN r0 IS NOT NULL THEN r.pg_weight
-                  ELSE 0
-                END AS lfm,
                 CASE
                   WHEN r1 IS NOT NULL THEN r.pg_weight
                   ELSE 0

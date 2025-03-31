@@ -91,14 +91,16 @@ def build_artist_tensor():
     artist_map = get_artist_map()
     logging.info("Building artist tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(artist_map), 15 + 1), dtype=torch.float32)  # See PyG_DS for 15 explained
+    result_tensor = torch.empty((len(artist_map), 17 + 1), dtype=torch.float32)  # See PyG_DS for 15 explained
     with driver.session() as session:
         query = """
             MATCH (n:Artist)
             RETURN
                 n.main_id as main_id,
-                COALESCE(n.begin_date, -1) AS begin_date,
-                COALESCE(n.end_date, -1) AS end_date,
+                CASE WHEN n.begin_date IS NULL THEN 0 ELSE 1 END AS has_begin_date,
+                COALESCE(n.begin_date, 0) AS begin_date,
+                CASE WHEN n.end_date IS NULL THEN 0 else 1 END AS has_end_date,
+                COALESCE(n.end_date, 0) AS end_date,
                 n.ended AS ended,
                 n.gender_1 AS gender_1,
                 n.gender_2 AS gender_2,
@@ -116,22 +118,24 @@ def build_artist_tensor():
         q_result = session.run(query)
         for record in q_result:
             artist_idx = artist_map[record["main_id"]]
-            result_tensor[artist_idx, 0]  = record["begin_date"]
-            result_tensor[artist_idx, 1]  = record["end_date"]
-            result_tensor[artist_idx, 2]  = record["ended"]
-            result_tensor[artist_idx, 3]  = record["gender_1"]
-            result_tensor[artist_idx, 4]  = record["gender_2"]
-            result_tensor[artist_idx, 5]  = record["gender_3"]
-            result_tensor[artist_idx, 6]  = record["gender_4"]
-            result_tensor[artist_idx, 7]  = record["gender_5"]
-            result_tensor[artist_idx, 8]  = record["popularity_scaled"]
-            result_tensor[artist_idx, 9]  = record["type_1"]
-            result_tensor[artist_idx, 10] = record["type_2"]
-            result_tensor[artist_idx, 11] = record["type_3"]
-            result_tensor[artist_idx, 12] = record["type_4"]
-            result_tensor[artist_idx, 13] = record["type_5"]
-            result_tensor[artist_idx, 14] = record["type_6"]
-            result_tensor[artist_idx, 15] = 1
+            result_tensor[artist_idx, 0]  = record["has_begin_date"]
+            result_tensor[artist_idx, 1]  = record["begin_date"]
+            result_tensor[artist_idx, 2]  = record["has_end_date"]
+            result_tensor[artist_idx, 3]  = record["end_date"]
+            result_tensor[artist_idx, 4]  = record["ended"]
+            result_tensor[artist_idx, 5]  = record["gender_1"]
+            result_tensor[artist_idx, 6]  = record["gender_2"]
+            result_tensor[artist_idx, 7]  = record["gender_3"]
+            result_tensor[artist_idx, 8]  = record["gender_4"]
+            result_tensor[artist_idx, 9]  = record["gender_5"]
+            result_tensor[artist_idx, 10]  = record["popularity_scaled"]
+            result_tensor[artist_idx, 11]  = record["type_1"]
+            result_tensor[artist_idx, 12] = record["type_2"]
+            result_tensor[artist_idx, 13] = record["type_3"]
+            result_tensor[artist_idx, 14] = record["type_4"]
+            result_tensor[artist_idx, 15] = record["type_5"]
+            result_tensor[artist_idx, 16] = record["type_6"]
+            result_tensor[artist_idx, 17] = 1
     logging.info("Saving artist tensor...")
     torch.save(result_tensor, "./pyg_experiments/ds/artists.pt")
     logging.info("Artist tensor done")
@@ -142,7 +146,7 @@ def build_track_tensor():
     track_map = get_track_map()
     logging.info("Building track tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(track_map), 4 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
+    result_tensor = torch.empty((len(track_map), 5 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
     with driver.session() as session:
         query = """
             MATCH (n:Track)
@@ -154,20 +158,21 @@ def build_track_tensor():
             RETURN
                 id,
                 popularity_scaled,
+                case when year = 0 then 0 else 1 end as has_year,
                 year,
-                CASE WHEN month = 0 THEN 0 ELSE 1 END AS month_known,
-                CASE WHEN month > 0 AND month <= 6 THEN 1 ELSE 0 END AS sem_1,
-                1
+                CASE WHEN month = 13 THEN 0 ELSE 1 END AS month_known,
+                CASE WHEN month > 0 AND month <= 6 THEN 1 ELSE 0 END AS sem_1
             ;
         """
         q_result = session.run(query)
         for record in q_result:
             track_idx = track_map[record["id"]]
             result_tensor[track_idx, 0]  = record["popularity_scaled"]
-            result_tensor[track_idx, 1]  = record["year"]
-            result_tensor[track_idx, 2]  = record["month_known"]
-            result_tensor[track_idx, 3] = record["sem_1"]
-            result_tensor[track_idx, 4] = 1
+            result_tensor[track_idx, 1]  = record["has_year"]
+            result_tensor[track_idx, 2]  = record["year"]
+            result_tensor[track_idx, 3]  = record["month_known"]
+            result_tensor[track_idx, 4] = record["sem_1"]
+            result_tensor[track_idx, 5] = 1
     logging.info("Saving track tensor...")
     torch.save(result_tensor, "./pyg_experiments/ds/tracks.pt")
     logging.info("Track tensor done")
@@ -474,21 +479,21 @@ def multiprocess_stuff(*jobs: multiprocessing.Process):
 
 def main():
     multiprocess_stuff(
-        multiprocessing.Process(target=build_artist_map),
-        multiprocessing.Process(target=build_track_map),
-        multiprocessing.Process(target=build_tag_map),
+        # multiprocessing.Process(target=build_artist_map),
+        # multiprocessing.Process(target=build_track_map),
+        # multiprocessing.Process(target=build_tag_map),
     )
 
     multiprocess_stuff(
         multiprocessing.Process(target=build_artist_tensor),
         multiprocessing.Process(target=build_track_tensor),
-        multiprocessing.Process(target=build_tag_tensor),
-        multiprocessing.Process(target=build_worked_in_by_tensor),
-        multiprocessing.Process(target=build_collab_with_tensor),
-        multiprocessing.Process(target=build_musically_related_to_tensor),
-        multiprocessing.Process(target=build_personally_related_to_tensor),
-        multiprocessing.Process(target=build_linked_to_tensor),
-        multiprocessing.Process(target=build_last_fm_match_tensor),
+        # multiprocessing.Process(target=build_tag_tensor),
+        # multiprocessing.Process(target=build_worked_in_by_tensor),
+        # multiprocessing.Process(target=build_collab_with_tensor),
+        # multiprocessing.Process(target=build_musically_related_to_tensor),
+        # multiprocessing.Process(target=build_personally_related_to_tensor),
+        # multiprocessing.Process(target=build_linked_to_tensor),
+        # multiprocessing.Process(target=build_last_fm_match_tensor),
         multiprocessing.Process(target=build_tags_has_tag_tensor_artists),
         multiprocessing.Process(target=build_tags_has_tag_tensor_tracks),
     )

@@ -17,13 +17,13 @@ def get_full_data() -> HeteroData:
 
     # See build_ds.py for magic numbers
     data["artist"].x = torch.load(path.join(data_folder, "artists.pt"), weights_only=True)
-    pop_index = 8
-    data["artist"].x = data["artist"].x[:, [i for i in range(16) if i != pop_index]]
+    pop_index = 10
+    data["artist"].x = data["artist"].x[:, [i for i in range(18) if i != pop_index]]
     logging.info(f"  Artist tensor shape: {data["artist"].x.shape}")
 
     data["track"].x = torch.load(path.join(data_folder, "tracks.pt"), weights_only=True)
     pop_index = 0
-    data["track"].x = data["track"].x[:, [i for i in range(5) if i != pop_index]]
+    data["track"].x = data["track"].x[:, [i for i in range(6) if i != pop_index]]
     logging.info(f"  Track tensor shape: {data["track"].x.shape}")
 
     data["tag"].x = torch.load(path.join(data_folder, "tags.pt"), weights_only=True)
@@ -260,16 +260,24 @@ if __name__ == '__main__':
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    percentile = 0.9
 
-    cut_year = 2021
-    cut_month = 11
+    for percentile in [0, 0.5, 0.75, 0.9]:
+        for cut_year in [2019, 2021, 2023]:
 
-    assert 0 <= percentile <= 1 and (
-        (cut_year is None and cut_month is None)
-        or
-        (cut_year is not None and cut_month is not None)
-    )
+            # percentile = 0.5
 
-    data_folder = "pyg_experiments/ds/"
-    main()
+            # cut_year = 2023
+            cut_month = 11
+
+            logging.info("P: %f", percentile)
+            logging.info("Y: %d", cut_year)
+            logging.info("M: %d", cut_month)
+
+            assert 0 <= percentile <= 1 and (
+                (cut_year is None and cut_month is None)
+                or
+                (cut_year is not None and cut_month is not None)
+            )
+
+            data_folder = "pyg_experiments/ds/"
+            main()
