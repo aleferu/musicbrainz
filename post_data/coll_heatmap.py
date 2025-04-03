@@ -54,18 +54,23 @@ def main(driver: Driver, tags: list[str], filename: str) -> None:
             heatmap_data.loc[t0_heatmap, t1_heatmap] += count
             heatmap_data.loc[t1_heatmap, t0_heatmap] += count
 
+    # Normalization by row
+    row_sums = heatmap_data.sum(axis=1)
+    normalized_heatmap_data = heatmap_data.div(row_sums, axis=0)
+
     # Drawing
     logging.info("Generating png...")
 
     plt.figure(figsize=(12, 12))
     sns.heatmap(
-        heatmap_data,
+        normalized_heatmap_data,
         annot=True,
         cmap="coolwarm",
         xticklabels=True,
         yticklabels=True,
         cbar=True,
-        fmt="d",
+        square=True,
+        fmt=".3f",
         linewidths=.5,
         linecolor='black',
         cbar_kws={"shrink": .8}
@@ -74,70 +79,70 @@ def main(driver: Driver, tags: list[str], filename: str) -> None:
     plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
     plt.savefig(f"img/{filename}.png")
 
-    mask = np.zeros((len(combined_tags), len(combined_tags)), dtype=bool)
-    mask[np.eye(mask.shape[0], dtype=bool)] = True
+    # mask = np.zeros((len(combined_tags), len(combined_tags)), dtype=bool)
+    # mask[np.eye(mask.shape[0], dtype=bool)] = True
 
-    plt.figure(figsize=(12, 12))
-    sns.heatmap(
-        heatmap_data,
-        annot=True,
-        cmap="coolwarm",
-        xticklabels=True,
-        yticklabels=True,
-        mask=mask,
-        cbar=True,
-        fmt="d",
-        linewidths=.5,
-        linecolor='black',
-        cbar_kws={"shrink": .8}
-    )
-    plt.tight_layout()
-    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
-    plt.savefig(f"img/{filename}_no_diag.png")
+    # plt.figure(figsize=(12, 12))
+    # sns.heatmap(
+    #     heatmap_data,
+    #     annot=True,
+    #     cmap="coolwarm",
+    #     xticklabels=True,
+    #     yticklabels=True,
+    #     mask=mask,
+    #     cbar=True,
+    #     fmt="d",
+    #     linewidths=.5,
+    #     linecolor='black',
+    #     cbar_kws={"shrink": .8}
+    # )
+    # plt.tight_layout()
+    # plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    # plt.savefig(f"img/{filename}_no_diag.png")
 
-    mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
-    for i in range(len(combined_tags)):
-        mask[i, :i + 1] = False
+    # mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
+    # for i in range(len(combined_tags)):
+    #     mask[i, :i + 1] = False
 
-    plt.figure(figsize=(12, 12))
-    sns.heatmap(
-        heatmap_data,
-        annot=True,
-        cmap="coolwarm",
-        xticklabels=True,
-        yticklabels=True,
-        mask=mask,
-        cbar=True,
-        fmt="d",
-        linewidths=.5,
-        linecolor='black',
-        cbar_kws={"shrink": .8}
-    )
-    plt.tight_layout()
-    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
-    plt.savefig(f"img/{filename}_triang.png")
+    # plt.figure(figsize=(12, 12))
+    # sns.heatmap(
+    #     heatmap_data,
+    #     annot=True,
+    #     cmap="coolwarm",
+    #     xticklabels=True,
+    #     yticklabels=True,
+    #     mask=mask,
+    #     cbar=True,
+    #     fmt="d",
+    #     linewidths=.5,
+    #     linecolor='black',
+    #     cbar_kws={"shrink": .8}
+    # )
+    # plt.tight_layout()
+    # plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    # plt.savefig(f"img/{filename}_triang.png")
 
-    mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
-    for i in range(len(combined_tags)):
-        mask[i, :i] = False
+    # mask = np.ones((len(combined_tags), len(combined_tags)), dtype=bool)
+    # for i in range(len(combined_tags)):
+    #     mask[i, :i] = False
 
-    plt.figure(figsize=(12, 12))
-    sns.heatmap(
-        heatmap_data,
-        annot=True,
-        cmap="coolwarm",
-        xticklabels=True,
-        yticklabels=True,
-        mask=mask,
-        cbar=True,
-        fmt="d",
-        linewidths=.5,
-        linecolor='black',
-        cbar_kws={"shrink": .8}
-    )
-    plt.tight_layout()
-    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
-    plt.savefig(f"img/{filename}_triang_no_diag.png")
+    # plt.figure(figsize=(12, 12))
+    # sns.heatmap(
+    #     heatmap_data,
+    #     annot=True,
+    #     cmap="coolwarm",
+    #     xticklabels=True,
+    #     yticklabels=True,
+    #     mask=mask,
+    #     cbar=True,
+    #     fmt="d",
+    #     linewidths=.5,
+    #     linecolor='black',
+    #     cbar_kws={"shrink": .8}
+    # )
+    # plt.tight_layout()
+    # plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    # plt.savefig(f"img/{filename}_triang_no_diag.png")
 
 
 if __name__ == '__main__':
@@ -195,13 +200,13 @@ if __name__ == '__main__':
         "drum and bass"
     ]
 
-    main(driver, test, "test")
+    # main(driver, test, "test")
 
     main(driver, good_tags, "good_coll_tags")
 
-    main(driver, bad_tags, "bad_coll_tags")
+    # main(driver, bad_tags, "bad_coll_tags")
 
-    main(driver, good_tags + bad_tags, "all_coll_tags")
+    # main(driver, good_tags + bad_tags, "all_coll_tags")
 
     driver.close()
 

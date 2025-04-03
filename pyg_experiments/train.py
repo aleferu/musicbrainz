@@ -248,14 +248,14 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
 if __name__ == '__main__':
     # data
     data_folder = "pyg_experiments/ds/"
-    model_name = "main_nomatch"
+    model_name = "main_mb"
     year = 2019
     month = 11
-    perc = 0
-    latest_epoch = 8
-    # train_hd = f"train_hdmb_{year}_{month}_{perc}.pt"
+    perc = 0.75
+    latest_epoch = 0
+    train_hd = f"train_hdmb_{year}_{month}_{perc}.pt"
     # train_hd = f"train_hd_{year}_{month}_{perc}.pt"
-    train_hd = f"train_hd_nomatch_{year}_{month}_{perc}.pt"
+    # train_hd = f"train_hd_nomatch_{year}_{month}_{perc}.pt"
     print("model_name:", model_name)
     print("year:", year)
     print("month:", month)

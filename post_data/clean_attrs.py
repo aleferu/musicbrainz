@@ -72,6 +72,7 @@ def artist_popularity(driver: Driver) -> None:
 
 
 def artist_tags_dates(driver: Driver) -> None:
+    # NOTE: better to divide in two!
     query = """
 MATCH (n:Artist)
 OPTIONAL MATCH (n)-[:HAS_TAG]->(t:Tag)

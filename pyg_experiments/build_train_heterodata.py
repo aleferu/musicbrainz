@@ -254,8 +254,8 @@ if __name__ == '__main__':
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # for percentile in [0, 0.5, 0.75, 0.9]:
-    for percentile in [0]:
+    for percentile in [0, 0.5, 0.75, 0.9]:
+    # for percentile in [0]:
         for cut_year in [2019, 2021, 2023]:
 
             # percentile = 0.5
