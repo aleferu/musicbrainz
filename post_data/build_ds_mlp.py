@@ -27,19 +27,19 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 m,
                 {all_tags} AS all_tags,
                 CASE
-                  WHEN r0 IS NOT NULL THEN r.pg_weight
+                  WHEN r0 IS NOT NULL THEN r0.pg_weight
                   ELSE 0
                 END AS lfm,
                 CASE
-                  WHEN r1 IS NOT NULL THEN r.pg_weight
+                  WHEN r1 IS NOT NULL THEN r1.pg_weight
                   ELSE 0
                 END AS mrt,
                 CASE
-                  WHEN r2 IS NOT NULL THEN r.pg_weight
+                  WHEN r2 IS NOT NULL THEN r2.pg_weight
                   ELSE 0
                 END AS prt,
                 CASE
-                  WHEN r3 IS NOT NULL THEN r.pg_weight
+                  WHEN r3 IS NOT NULL THEN r3.pg_weight
                   ELSE 0
                 END AS lt
             RETURN
@@ -213,19 +213,19 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 m,
                 {all_tags} AS all_tags,
                 CASE
-                  WHEN r0 IS NOT NULL THEN r.pg_weight
+                  WHEN r0 IS NOT NULL THEN r0.pg_weight
                   ELSE 0
                 END AS lfm,
                 CASE
-                  WHEN r1 IS NOT NULL THEN r.pg_weight
+                  WHEN r1 IS NOT NULL THEN r1.pg_weight
                   ELSE 0
                 END AS mrt,
                 CASE
-                  WHEN r2 IS NOT NULL THEN r.pg_weight
+                  WHEN r2 IS NOT NULL THEN r2.pg_weight
                   ELSE 0
                 END AS prt,
                 CASE
-                  WHEN r3 IS NOT NULL THEN r.pg_weight
+                  WHEN r3 IS NOT NULL THEN r3.pg_weight
                   ELSE 0
                 END AS lt
             RETURN
@@ -295,7 +295,9 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
         y = [0] * expected_count
         for record in tqdm(session.run(query)):  # type: ignore
             x.append([
+                record["hbd0"],
                 record["bd0"],
+                record["hed0"],
                 record["ed0"],
                 record["e0"],
                 record["g10"],
@@ -316,7 +318,9 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["sc0"],
                 record["sp0"],
 
+                record["hbd1"],
                 record["bd1"],
+                record["hed1"],
                 record["ed1"],
                 record["e1"],
                 record["g11"],
@@ -337,7 +341,10 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["sc1"],
                 record["sp1"],
 
-                record["lfm"]
+                record["lfm"],
+                record["mrt"],
+                record["prt"],
+                record["lt"]
             ])
 
     return x[:train_count], y[:train_count], x[train_count:], y[train_count:]
@@ -398,29 +405,32 @@ if __name__ == '__main__':
         DB_PASS is not None, \
         "INVALID .env"
 
-    year = 2019
-    print("year:", year)
-    month = 11
-    print("month:", month)
-    perc = 0.9
-    print("perc:", perc)
+    for year in [2019, 2021, 2023]:
+        for perc in [0, 0.5, 0.75, 0.9]:
 
-    train_collab_with = torch.load(f"pyg_experiments/ds/collab_with_{year}_{month}_{perc}.pt")
-    train_edges_set = set(map(tuple, train_collab_with.t().tolist()))
+            # year = 2019
+            logging.info("year: %d", year)
+            month = 11
+            logging.info("month: %d", month)
+            # perc = 0.9
+            logging.info("perc: %f", perc)
 
-    with open("pyg_experiments/ds/artist_map.pkl", "rb") as in_file:
-        artist_map = pickle.load(in_file)
+            train_collab_with = torch.load(f"pyg_experiments/ds/collab_with_{year}_{month}_{perc}.pt")
+            train_edges_set = set(map(tuple, train_collab_with.t().tolist()))
 
-    # db connection
-    driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
+            with open("pyg_experiments/ds/artist_map.pkl", "rb") as in_file:
+                artist_map = pickle.load(in_file)
 
-    with driver.session() as session:
-        query = f"MATCH (n:Artist) RETURN apoc.agg.percentiles(n.popularity_scaled, [{perc}]) AS p"
-        result = session.run(query)  # type: ignore
-        perc_value = result.data()[0]["p"][0]
+            # db connection
+            driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    main()
+            with driver.session() as session:
+                query = f"MATCH (n:Artist) RETURN apoc.agg.percentiles(n.popularity_scaled, [{perc}]) AS p"
+                result = session.run(query)  # type: ignore
+                perc_value = result.data()[0]["p"][0]
 
-    driver.close()
+            main()
+
+            driver.close()
 
     logging.info("DONE!")
