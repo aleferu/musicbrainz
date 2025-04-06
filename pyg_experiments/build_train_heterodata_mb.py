@@ -17,8 +17,6 @@ def get_full_data() -> HeteroData:
 
     # See build_ds.py for magic numbers
     data["artist"].x = torch.load(path.join(data_folder, "artists.pt"), weights_only=True)
-    pop_index = 10
-    data["artist"].x = data["artist"].x[:, [i for i in range(18) if i != pop_index]]
     logging.info(f"  Artist tensor shape: {data["artist"].x.shape}")
 
     data["track"].x = torch.load(path.join(data_folder, "tracks.pt"), weights_only=True)
@@ -111,7 +109,7 @@ def clean_data(data: HeteroData):
     logging.info(f"Cleaning data per percentile {percentile}")
 
     # Data
-    artist_popularity = data["artist"].x[:, 8]
+    artist_popularity = data["artist"].x[:, 10]
 
     # Threshold obtention
     threshold = torch.quantile(artist_popularity, percentile)
@@ -235,6 +233,9 @@ def main():
     if percentile > 0:
         clean_data(full_data)
 
+    pop_index = 10
+    full_data["artist"].x = full_data["artist"].x[:, [i for i in range(18) if i != pop_index]]
+
     logging.info("Saving full graph...")
     full_path = path.join(data_folder, f"full_hdmb_{percentile}.pt")
     torch.save(full_data, full_path)
@@ -261,7 +262,7 @@ if __name__ == '__main__':
     )
 
 
-    for percentile in [0, 0.5, 0.75, 0.9]:
+    for percentile in [0.5, 0.75, 0.9]:
         for cut_year in [2019, 2021, 2023]:
 
             # percentile = 0.5
