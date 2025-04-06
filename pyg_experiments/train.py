@@ -71,6 +71,143 @@ class GNN(torch.nn.Module):
         return x_dict
 
 
+class GNN_NOCAT(torch.nn.Module):
+    def __init__(self, metadata, hidden_channels, out_channels):
+        super().__init__()
+        self.metadata = metadata
+        self.out_channels = out_channels
+
+        self.conv1 = HeteroConv({
+            ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "personally_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("tag", "tags_artists", "artist"): SAGEConv((tag_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("tag", "tags_tracks", "track"): SAGEConv((tag_channels, track_channels), hidden_channels, normalize=True, project=True),
+            ("track", "worked_by", "artist"): SAGEConv((track_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "worked_in", "track"): SAGEConv((artist_channels, track_channels), hidden_channels, normalize=True, project=True),
+        }, aggr="mean")
+
+        self.conv2 = HeteroConv({
+            ("artist", "collab_with", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "has_tag_artists", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+            # ("artist", "last_fm_match", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("track", "has_tag_tracks", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "linked_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "musically_related_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "personally_related_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("tag", "tags_artists", "artist"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+            ("tag", "tags_tracks", "track"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+            ("track", "worked_by", "artist"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "worked_in", "track"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
+        }, aggr="mean")
+
+        self.linear1 = Linear(hidden_channels, hidden_channels * 4)
+        self.linear2 = Linear(hidden_channels * 4, out_channels)
+
+    def forward(self, x_dict, edge_index_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict)
+        x_dict2 = self.conv2(x_dict1, edge_index_dict)
+
+        # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
+
+        x_artist = self.linear1(x_dict2['artist'])
+        x_artist = F.relu(x_artist)
+        x_artist = self.linear2(x_artist)
+
+        # Normalize the artist node features
+        x_artist = F.normalize(x_artist, p=2, dim=-1)
+
+        # Update the dictionary with the new 'artist' features, leaving other nodes unchanged
+        x_dict['artist'] = x_artist
+
+        return x_dict
+
+
+class GNN_ONECONV(torch.nn.Module):
+    def __init__(self, metadata, hidden_channels, out_channels):
+        super().__init__()
+        self.metadata = metadata
+        self.out_channels = out_channels
+
+        self.conv1 = HeteroConv({
+            ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "personally_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("tag", "tags_artists", "artist"): SAGEConv((tag_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("tag", "tags_tracks", "track"): SAGEConv((tag_channels, track_channels), hidden_channels, normalize=True, project=True),
+            ("track", "worked_by", "artist"): SAGEConv((track_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "worked_in", "track"): SAGEConv((artist_channels, track_channels), hidden_channels, normalize=True, project=True),
+        }, aggr="mean")
+
+        self.linear1 = Linear(hidden_channels, hidden_channels * 4)
+        self.linear2 = Linear(hidden_channels * 4, out_channels)
+
+    def forward(self, x_dict, edge_index_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict)
+        # x_dict2 = self.conv2(x_dict1, edge_index_dict)
+
+        # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
+
+        x_artist = self.linear1(x_dict1['artist'])
+        x_artist = F.relu(x_artist)
+        x_artist = self.linear2(x_artist)
+
+        # Normalize the artist node features
+        x_artist = F.normalize(x_artist, p=2, dim=-1)
+
+        # Update the dictionary with the new 'artist' features, leaving other nodes unchanged
+        x_dict['artist'] = x_artist
+
+        return x_dict
+
+
+class GNN_ONECONVONEFF(torch.nn.Module):
+    def __init__(self, metadata, hidden_channels, out_channels):
+        super().__init__()
+        self.metadata = metadata
+        self.out_channels = out_channels
+
+        self.conv1 = HeteroConv({
+            ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "personally_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("tag", "tags_artists", "artist"): SAGEConv((tag_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("tag", "tags_tracks", "track"): SAGEConv((tag_channels, track_channels), hidden_channels, normalize=True, project=True),
+            ("track", "worked_by", "artist"): SAGEConv((track_channels, artist_channels), hidden_channels, normalize=True, project=True),
+            ("artist", "worked_in", "track"): SAGEConv((artist_channels, track_channels), hidden_channels, normalize=True, project=True),
+        }, aggr="mean")
+
+        self.linear = Linear(hidden_channels, hidden_channels)
+
+    def forward(self, x_dict, edge_index_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict)
+        # x_dict2 = self.conv2(x_dict1, edge_index_dict)
+
+        # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
+
+        x_artist = self.linear(x_dict1['artist'])
+
+        # Normalize the artist node features
+        x_artist = F.normalize(x_artist, p=2, dim=-1)
+
+        # Update the dictionary with the new 'artist' features, leaving other nodes unchanged
+        x_dict['artist'] = x_artist
+
+        return x_dict
+
+
 def train(model, train_loader, val_loader, optimizer, criterion, device, num_epochs, patience=5):
     best_val_f1 = 0.0
     best_threshold = 0
@@ -248,7 +385,8 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
 if __name__ == '__main__':
     # data
     data_folder = "pyg_experiments/ds/"
-    model_name = "main_mb"
+    # model_name = "main_mb"
+    model_name = "nocat_mb"
     year = 2019
     month = 11
     perc = 0.75
@@ -305,6 +443,7 @@ if __name__ == '__main__':
         num_workers=10,
         pin_memory=True,
         sampler=train_sampler,
+        subgraph_type="induced"
     )
 
     print("Creating val loader...")
@@ -318,12 +457,14 @@ if __name__ == '__main__':
         num_workers=10,
         pin_memory=True,
         sampler=val_sampler,
+        subgraph_type="induced"
     )
 
     print("Number of train batches:", len(train_loader))
     print("Number of validation batches:", len(val_loader))
 
-    model = GNN(metadata=data.metadata(), hidden_channels=64, out_channels=64).to(device)
+    # model = GNN(metadata=data.metadata(), hidden_channels=64, out_channels=64).to(device)
+    model = GNN_NOCAT(metadata=data.metadata(), hidden_channels=64, out_channels=64).to(device)
 
     if latest_epoch > 0:
         model.load_state_dict(torch.load(f"pyg_experiments/model_{model_name}_{year}_{month}_{perc}_{latest_epoch}.pth"))
