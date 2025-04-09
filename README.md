@@ -74,6 +74,8 @@ Or with custom name.
 conda env create -n customenvname -f environment.yaml
 ```
 
+If pip fails install `pyg-lib` after everything else is done.
+
 ## PostgreSQL (MusicBrainz) database installation
 
 I followed [this link](https://musicbrainz.org/doc/MusicBrainz_Server/Setup), section **Setup from source code**. In theory you can install the database without the web server but I didn't want to mess up by skipping a crucial step by accident. The web server installation is very fast, unlike the database installation, so I recommend doing it that way.
