@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
+
 import torch
 import torch.nn.functional as F
 from torch.nn import Linear
 from torch_geometric.nn import HeteroConv, GATConv, SAGEConv
-import os.path as path
 import numpy as np
 from sklearn.metrics import roc_auc_score, confusion_matrix
 import tqdm
@@ -209,11 +209,14 @@ class GNN_ONECONVONEFF(torch.nn.Module):
 
 
 # Training parameters
-model_name = "oneconv_mb"
+model_name = "oneconvoneff_mb"
 year = 2019
+print("year:", year)
 month = 11
-perc = 0.75
-latest_epoch = 0
+print("month:", month)
+perc = 0
+print("perc:", perc)
+latest_epoch = 5
 hidden_channels = 64
 out_channels = 64
 num_epochs = 1000
@@ -244,7 +247,8 @@ track_channels = sample_train_batch["track"].x.size(1)
 tag_channels = sample_train_batch["tag"].x.size(1)
 
 # Initialize model
-model = GNN_ONECONV(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
+# model = GNN_ONECONV(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
+model = GNN_ONECONVONEFF(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
 if latest_epoch > 0:
     model.load_state_dict(torch.load(f"pyg_experiments/model_{model_name}_{year}_{month}_{perc}_{latest_epoch}.pth", weights_only=False))
     print("Loaded epoch", latest_epoch)

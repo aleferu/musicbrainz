@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
+
 import torch
 import torch.nn.functional as F
 from torch.nn import Linear
 from torch_geometric.nn import HeteroConv, GATConv, SAGEConv, GATv2Conv
-import os.path as path
 import numpy as np
 from sklearn.metrics import roc_auc_score, confusion_matrix
 import tqdm
@@ -210,10 +210,13 @@ class GNN_ONECONVONEFF(torch.nn.Module):
 
 # Training parameters
 model_name = "main_lfm"
-year = 2019
+year = 2021
+print("year:", year)
 month = 11
-perc = 0.9
-latest_epoch = 0
+print("month:", month)
+perc = 0.5
+print("perc:", perc)
+latest_epoch = 31
 hidden_channels = 64
 out_channels = 64
 num_epochs = 1000
@@ -358,6 +361,7 @@ def find_best_threshold(labels, probs):
                 best_f1 = f1
     return best_threshold
 
+
 def calculate_metrics(labels, probs, threshold):
     if labels.numel() == 0:
         return 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -373,6 +377,7 @@ def calculate_metrics(labels, probs, threshold):
     f1 = 2 * precision * recall / (precision + recall)
     roc_auc = roc_auc_score(labels, probs)
     return accuracy, precision, recall, f1, roc_auc, tp, fp, fn, tn
+
 
 if __name__ == '__main__':
     best_val_f1 = 0.0

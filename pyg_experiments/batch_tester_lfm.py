@@ -3,7 +3,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn import Linear
-from torch_geometric.nn import HeteroConv, GATConv, SAGEConv
+from torch_geometric.nn import HeteroConv, GATConv, SAGEConv, GATv2Conv
 import os.path as path
 import numpy as np
 from sklearn.metrics import roc_auc_score, confusion_matrix
@@ -23,7 +23,7 @@ class GNN(torch.nn.Module):
         self.conv1 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
@@ -37,7 +37,7 @@ class GNN(torch.nn.Module):
         self.conv2 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
@@ -51,9 +51,9 @@ class GNN(torch.nn.Module):
         self.linear1 = Linear(hidden_channels * 2, hidden_channels * 4)
         self.linear2 = Linear(hidden_channels * 4, out_channels)
 
-    def forward(self, x_dict, edge_index_dict):
-        x_dict1 = self.conv1(x_dict, edge_index_dict)
-        x_dict2 = self.conv2(x_dict1, edge_index_dict)
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict, edge_attr_dict)
+        x_dict2 = self.conv2(x_dict1, edge_index_dict, edge_attr_dict)
 
         x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
 
@@ -79,7 +79,7 @@ class GNN_NOCAT(torch.nn.Module):
         self.conv1 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
@@ -93,7 +93,7 @@ class GNN_NOCAT(torch.nn.Module):
         self.conv2 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((hidden_channels, hidden_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((hidden_channels, hidden_channels), hidden_channels, heads=3, concat=False),
@@ -107,9 +107,9 @@ class GNN_NOCAT(torch.nn.Module):
         self.linear1 = Linear(hidden_channels, hidden_channels * 4)
         self.linear2 = Linear(hidden_channels * 4, out_channels)
 
-    def forward(self, x_dict, edge_index_dict):
-        x_dict1 = self.conv1(x_dict, edge_index_dict)
-        x_dict2 = self.conv2(x_dict1, edge_index_dict)
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict, edge_attr_dict)
+        x_dict2 = self.conv2(x_dict1, edge_index_dict, edge_attr_dict)
 
         # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
 
@@ -135,7 +135,7 @@ class GNN_ONECONV(torch.nn.Module):
         self.conv1 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
@@ -149,9 +149,9 @@ class GNN_ONECONV(torch.nn.Module):
         self.linear1 = Linear(hidden_channels, hidden_channels * 4)
         self.linear2 = Linear(hidden_channels * 4, out_channels)
 
-    def forward(self, x_dict, edge_index_dict):
-        x_dict1 = self.conv1(x_dict, edge_index_dict)
-        # x_dict2 = self.conv2(x_dict1, edge_index_dict)
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict, edge_attr_dict)
+        # x_dict2 = self.conv2(x_dict1, edge_index_dict, edge_attr_dict)
 
         # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
 
@@ -177,7 +177,7 @@ class GNN_ONECONVONEFF(torch.nn.Module):
         self.conv1 = HeteroConv({
             ("artist", "collab_with", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "has_tag_artists", "tag"): SAGEConv((artist_channels, tag_channels), hidden_channels, normalize=True, project=True),
-            # ("artist", "last_fm_match", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
+            ("artist", "last_fm_match", "artist"): GATv2Conv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False, edge_dim=1),
             ("track", "has_tag_tracks", "tag"): SAGEConv((track_channels, tag_channels), hidden_channels, normalize=True, project=True),
             ("artist", "linked_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
             ("artist", "musically_related_to", "artist"): GATConv((artist_channels, artist_channels), hidden_channels, heads=3, concat=False),
@@ -190,9 +190,9 @@ class GNN_ONECONVONEFF(torch.nn.Module):
 
         self.linear = Linear(hidden_channels, hidden_channels)
 
-    def forward(self, x_dict, edge_index_dict):
-        x_dict1 = self.conv1(x_dict, edge_index_dict)
-        # x_dict2 = self.conv2(x_dict1, edge_index_dict)
+    def forward(self, x_dict, edge_index_dict, edge_attr_dict):
+        x_dict1 = self.conv1(x_dict, edge_index_dict, edge_attr_dict)
+        # x_dict2 = self.conv2(x_dict1, edge_index_dict, edge_attr_dict)
 
         # x_artist = torch.cat([x_dict1['artist'], x_dict2['artist']], dim=-1)
 
@@ -210,16 +210,19 @@ class GNN_ONECONVONEFF(torch.nn.Module):
 data_folder = "pyg_experiments/ds/"
 
 # Training parameters
-model_name = "oneconvoneff_mb"
-year = 2023
+model_name = "main_lfm"
+year = 2021
 print("year:", year)
 month = 11
 print("month:", month)
 perc = 0.5
 print("perc:", perc)
-train_collab_with_filename = f"collab_withmb_{year}_{month}_{perc}.pt"
+hidden_channels = 64
+out_channels = 64
+test_hd = f"full_hd_{perc}.pt"
+train_collab_with_filename = f"collab_with_{year}_{month}_{perc}.pt"
 model_path = f"pyg_experiments/trained_models/model_{model_name}_{year}_{month}_{perc}.pth"
-best_threshold = 0.61
+best_threshold = 0.72
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -244,7 +247,8 @@ track_channels = sample_train_batch["track"].x.size(1)
 tag_channels = sample_train_batch["tag"].x.size(1)
 
 # Initialize model
-model = GNN_ONECONVONEFF(metadata=metadata, hidden_channels=64, out_channels=64).to(device)
+# model = GNN_ONECONV(metadata=metadata, hidden_channels=64, out_channels=64).to(device)
+model = GNN(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
 model.load_state_dict(torch.load(model_path, weights_only=False))
 
 # Initialize optimizer and loss criterion
@@ -268,7 +272,15 @@ def test(model, server_url, criterion, device):
                 if response.status_code == 200:
                     num_batches += 1
                     sampled_data = pickle.loads(response.content).to(device)
-                    pred_dict = model(sampled_data.x_dict, sampled_data.edge_index_dict)
+
+                    # Create a new edge_attr_dict containing only 'last_fm_match' attributes
+                    last_fm_match_edge_attr = {}
+                    if ("artist", "last_fm_match", "artist") in sampled_data.edge_attr_dict:
+                        last_fm_match_edge_attr[("artist", "last_fm_match", "artist")] = sampled_data.edge_attr_dict[("artist", "last_fm_match", "artist")]
+
+                    # Forward pass
+                    pred_dict = model(sampled_data.x_dict, sampled_data.edge_index_dict, last_fm_match_edge_attr)
+
                     edge_label_index = sampled_data['artist', 'collab_with', 'artist'].edge_label_index
                     edge_label = sampled_data['artist', 'collab_with', 'artist'].edge_label
 

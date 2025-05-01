@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 
+
 import torch
 from torch_geometric.loader import LinkNeighborLoader
-from torch.utils.data import SubsetRandomSampler
 import os.path as path
-import numpy as np
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify
 import pickle
+
 
 app = Flask(__name__)
 
 # Data loading parameters
 data_folder = "pyg_experiments/ds/"
-year = 2019
+year = 2021
+print("year:", year)
 month = 11
-perc = 0.75
-test_hd = f"full_hdmb_{perc}.pt"
+print("month:", month)
+perc = 0.5
+print("perc:", perc)
+# test_hd = f"full_hdmb_{perc}.pt"
+test_hd = f"full_hd_{perc}.pt"
 compt_tree_size = [25, 20]
 batch_size = 128
 
@@ -35,14 +39,16 @@ test_loader = LinkNeighborLoader(
 
 test_iter = iter(test_loader)
 
+
 @app.route('/get_length', methods=['GET'])
 def get_lengths():
     return jsonify({
             "test": len(test_loader),
         }), 200
 
+
 @app.route('/get_test_batch', methods=['GET'])
-def get_val_batch():
+def get_test_batch():
     global test_iter
     try:
         batch = next(test_iter)
@@ -52,5 +58,6 @@ def get_val_batch():
         test_iter = iter(test_loader)
         return jsonify({"message": "No more validation batches"}), 204
 
+
 if __name__ == '__main__':
-    app.run(debug=False, port=8889) # Set debug to False in production
+    app.run(debug=False, port=8889)

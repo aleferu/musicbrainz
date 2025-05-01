@@ -111,6 +111,7 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
         logging.info("Collecting positive edges...")
         for record in tqdm(session.run(query)):  # type: ignore
             data_list = [
+                int(record["id0"]),
                 record["hbd0"],
                 record["bd0"],
                 record["hed0"],
@@ -134,6 +135,7 @@ def get_positive_info(all_tags: list[str]) -> tuple[list, list, list, list]:
                 record["sc0"],
                 record["sp0"],
 
+                int(record["id1"]),
                 record["hbd1"],
                 record["bd1"],
                 record["hed1"],
@@ -295,6 +297,7 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
         y = [0] * expected_count
         for record in tqdm(session.run(query)):  # type: ignore
             x.append([
+                int(record["id0"]),
                 record["hbd0"],
                 record["bd0"],
                 record["hed0"],
@@ -318,6 +321,7 @@ def get_negative_info(all_tags: list[str], expected_count: int, train_count: int
                 record["sc0"],
                 record["sp0"],
 
+                int(record["id1"]),
                 record["hbd1"],
                 record["bd1"],
                 record["hed1"],
