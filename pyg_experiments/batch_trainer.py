@@ -14,7 +14,6 @@ import pickle
 import time
 
 
-# Model definitions (copy from the original script)
 class GNN(torch.nn.Module):
     def __init__(self, metadata, hidden_channels, out_channels):
         super().__init__()

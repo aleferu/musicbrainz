@@ -33,7 +33,7 @@ test_loader = LinkNeighborLoader(
     num_neighbors=compt_tree_size,
     neg_sampling_ratio=1,
     edge_label_index=("artist", "collab_with", "artist"),
-    batch_size=128,
+    batch_size=batch_size,
     shuffle=False,
 )
 
@@ -43,8 +43,8 @@ test_iter = iter(test_loader)
 @app.route('/get_length', methods=['GET'])
 def get_lengths():
     return jsonify({
-            "test": len(test_loader),
-        }), 200
+        "test": len(test_loader),
+    }), 200
 
 
 @app.route('/get_test_batch', methods=['GET'])

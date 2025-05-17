@@ -38,6 +38,7 @@ def create_plots_for_combination(model, year, perc):
     plt.figure(figsize=(10, 6))
     plt.plot(subset["epoch"], subset["acc"], label="Accuracy")
     plt.plot(subset["epoch"], subset["f1"], label="F1 Score")
+    plt.plot(subset["epoch"], subset["auc"], label="ROC AUC")
 
     # Horizontal dashed line at the 6th last F1 value
     sixth_last_f1 = subset["f1"].iloc[-6]
@@ -45,7 +46,7 @@ def create_plots_for_combination(model, year, perc):
 
     plt.xlabel("Epoch")
     plt.ylabel("Metric Value")
-    plt.title(f"Accuracy & F1 - Model: {model}, Year: {year}, Perc: {int(100 * (1 - perc))}")
+    plt.title(f"Accuracy, F1 & ROC-AUC - Model: {model}, Year: {year}, Perc: {int(100 * (1 - perc))}")
     plt.legend()
 
     # Save the metrics plot

@@ -3,14 +3,12 @@
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import TensorDataset, random_split
 import tqdm
-import pandas as pd
 import copy
 import numpy as np
-import multiprocessing as mp
 from sklearn.metrics import roc_auc_score, confusion_matrix
+from sklearn.metrics import precision_recall_curve
 import requests
 
 
@@ -62,8 +60,6 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
     best_val_f1 = 0.0
     epochs_no_improve = 0
     best_model_state = None
-    train_losses = list()
-    val_losses = list()
     best_epoch = 0
 
     for epoch in range(num_epochs):
@@ -112,25 +108,20 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
         # Find threshold for predictions
         print("Looking for threshold")
 
-        with mp.Pool(10) as pool:
-            results = pool.starmap(
-                calculate_metrics, 
-                [
-                    (threshold, all_probs, all_labels)
-                    for threshold in np.arange(0.05, 0.96, 0.01)
-                ]
-            )
+        precisions, recalls, thresholds = precision_recall_curve(all_labels, all_probs)
+        precisions = precisions[:-1]  # Last value is not real
+        recalls = recalls[:-1]  # Last value is not real
+        mask = (precisions > 0) & (recalls > 0)
 
-        best_threshold_epoch = 0
-        best_f1_epoch = -1
-        for threshold, f1 in results:
-            if f1 > best_f1_epoch:
-                best_f1_epoch = f1
-                best_threshold_epoch = threshold
+        valid_precisions = precisions[mask]
+        valid_recalls = recalls[mask]
+        valid_thresholds = thresholds[mask]
 
-        print(f"Best threshold: {best_threshold_epoch}")
+        f1_scores = 2 * (valid_precisions * valid_recalls) / (valid_precisions + valid_recalls)
+        best_threshold_epoch = valid_thresholds[np.argmax(f1_scores)]
+
+        # Compute metrics with found threshold
         all_preds = (all_probs > best_threshold_epoch).astype(int)
-
         cm = confusion_matrix(all_labels, all_preds)
         tp = cm[1, 1]
         fp = cm[0, 1]
@@ -169,14 +160,14 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
             "fp": int(fp),
             "fn": int(fn),
             "tn": int(tn),
-            "best_threshold": best_threshold_epoch,
+            "best_threshold": float(best_threshold_epoch),
             "done": False
         }
         url = "http://localhost:5000/save_results"
         response = requests.post(url, json=new_row)
         assert response.status_code == 200
 
-        torch.save(model.state_dict(), f"./model_{model_name}_{year}_{month}_{perc}_{latest_epoch + epoch + 1}.pth")
+        torch.save(model.state_dict(), f"./pyg_experiments/model_{model_name}_{year}_{month}_{perc}_{latest_epoch + epoch + 1}.pth")
 
         if f1 > best_val_f1:
             best_val_f1 = f1
@@ -186,6 +177,7 @@ def train(model, train_loader, val_loader, optimizer, criterion, device, num_epo
             best_epoch = latest_epoch + epoch + 1
         else:
             epochs_no_improve += 1
+            print("Epochs without improving:", epochs_no_improve)
             if epochs_no_improve == patience:
                 print(f"Early stopping!!!")
                 print(f"Early stopping!!!")
@@ -248,7 +240,7 @@ def test(model, test_loader, device, criterion, best_threshold):
 
 
 if __name__ == '__main__':
-    model_name = "mlp_lfm"
+    model_name = "mlp_mb"
     print("model_name", model_name)
     year = 2023
     print("year", year)
@@ -266,20 +258,15 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: '{device}'")
 
-    x_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_train.pt")
-    x_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_test.pt")
+    # x_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_train.pt")
+    # x_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_test.pt")
+    # y_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_train.pt")
+    # y_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_test.pt")
+
+    x_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_train_mb.pt")
+    x_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_test_mb.pt")
     y_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_train.pt")
     y_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_test.pt")
-
-    # x_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_train_norm.pt")
-    # x_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_test_norm.pt")
-    # y_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_train.pt")
-    # y_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_test.pt")
-
-    # x_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_train_mb.pt")
-    # x_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}x_test_mb.pt")
-    # y_train = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_train.pt")
-    # y_test = torch.load(f"pyg_experiments/ds/mlp{year}{month}{perc}y_test.pt")
 
     print(f"x_train shape:", x_train.shape)
     print(f"x_test shape:", x_test.shape)
@@ -314,6 +301,8 @@ if __name__ == '__main__':
         device,
         1000
     )
+
+    torch.save(model.state_dict(), f"./pyg_experiments/trained_models/model_{model_name}_{year}_{month}_{perc}.pth")
 
     test(
         model,

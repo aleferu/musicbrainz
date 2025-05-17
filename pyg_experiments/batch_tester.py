@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 import torch
 import torch.nn.functional as F
 from torch.nn import Linear
@@ -13,7 +14,6 @@ import pickle
 import time
 
 
-# Model definitions (copy from the original script)
 class GNN(torch.nn.Module):
     def __init__(self, metadata, hidden_channels, out_channels):
         super().__init__()

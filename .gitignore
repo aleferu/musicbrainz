@@ -8,3 +8,11 @@ pyrightconfig.json
 img/
 .ipynb_checkpoints/
 *.pth
+data/
+curves/
+backups/
+test.ipynb
+*.old
+pyg_experiments/ds/
+post_data/ds/
+pyg_experiments/trained_models/
