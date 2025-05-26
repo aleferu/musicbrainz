@@ -72,7 +72,3 @@ apoc.import.file.enabled=true
 `APOC` should already be downloaded somewhere in `/var/lib/neo4j/`, but you need to download and install `GDS` from [this link](https://neo4j.com/deployment-center/#gds-tab) (also check [version compatibilities](https://neo4j.com/docs/graph-data-science/current/installation/supported-neo4j-versions/) and [instructions](https://neo4j.com/docs/graph-data-science/current/installation/neo4j-server/)).
 
 Then just `sudo neo4j start/stop/restart...` to run.
-
-## LICENSE
-
-No license right now as I don't know if this work can be exposed to the public at the moment of writing this README.
