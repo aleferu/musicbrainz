@@ -42,7 +42,14 @@ def initialize_tiktok_accounts(tx: ManagedTransaction):
         """
         MATCH (a:Artist)
         WHERE a.tiktok_accounts IS NULL
-        SET a.tiktok_accounts = []
+        SET a.tiktok_accounts = [],
+            a.tiktok_call = false,
+            a.in_tiktok = false,
+            a.likes_count = -1,
+            a.video_count = -1,
+            a.follower_count = -1,
+            a.following_count = -1,
+            a.following_list = []
         """
     )
 
