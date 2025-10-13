@@ -93,12 +93,12 @@ def main():
                 batched(updates, batch_size), desc="Processing batches"
             ):
                 updates_param = list(batch)
-                # Use APOC to update in batches; coalesce handles missing property
+                # Use APOC to update in batches
                 session.run(
                     """
                     CALL apoc.periodic.iterate(
                         'UNWIND $updates AS u RETURN u',
-                        'MATCH (a:Artist)\nWHERE u.id IN a.known_ids\nSET a.tiktok_accounts = apoc.coll.toSet(coalesce(a.tiktok_accounts, []) + u.usernames)',
+                        'MATCH (a:Artist)\nWHERE u.id IN a.known_ids\nSET a.tiktok_accounts = apoc.coll.toSet(a.tiktok_accounts + u.usernames)',
                         {batchSize: 50, parallel: true, params: {updates: $updates}}
                     )
                     """,

@@ -113,8 +113,8 @@ def main():
                     """
                     CALL apoc.periodic.iterate(
                         'UNWIND $updates AS u RETURN u',
-                        'MATCH (a:Artist)\nWHERE (size(u.gids) > 0 AND any(g IN coalesce(a.known_gids, []) WHERE g IN u.gids))\n   OR (size(u.names_lc) > 0 AND any(n IN coalesce(a.known_names, []) WHERE toLower(n) IN u.names_lc))\nSET a.tiktok_accounts = apoc.coll.toSet(coalesce(a.tiktok_accounts, []) + u.usernames)',
-                        {batchSize: 50, parallel: true, params: {updates: $updates}}
+                        'MATCH (a:Artist)\nWHERE (size(u.gids) > 0 AND any(g IN a.known_gids WHERE g IN u.gids))\n   OR (size(u.gids) = 0 AND size(u.names_lc) > 0 AND any(n IN a.known_names_lc WHERE n IN u.names_lc))\nSET a.tiktok_accounts = apoc.coll.toSet(a.tiktok_accounts + u.usernames)',
+                        {batchSize: 30, parallel: true, params: {updates: $updates}}
                     )
                     """,
                     updates=updates_param,
