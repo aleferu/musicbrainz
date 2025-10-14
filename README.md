@@ -1,6 +1,8 @@
-# MusicBrainz database study
+# MUSYNERGY
 
-This repository serves as a way of working with multiple computers and as a way of showing my work to the professor that guides me.
+Code for MUSYNERGY: A Framework for Music Collaboration Discovery Based on Neural Networks and Graph Analysis.
+
+Article: https://www.sciencedirect.com/science/article/pii/S1875952125001132
 
 ## .env file
 
@@ -18,6 +20,7 @@ A .env file is needed in order to configure the database connection. An example 
 
 - Musicbrainz data: `2024-10-31 21:00:49.130771+00`
 - LastFM data: `2024-11-05` to `2024-11-23`.
+- TikTok data: `2025-10-13` to `ONGOING`.
 
 ## Dataset
 
@@ -72,3 +75,15 @@ apoc.import.file.enabled=true
 `APOC` should already be downloaded somewhere in `/var/lib/neo4j/`, but you need to download and install `GDS` from [this link](https://neo4j.com/deployment-center/#gds-tab) (also check [version compatibilities](https://neo4j.com/docs/graph-data-science/current/installation/supported-neo4j-versions/) and [instructions](https://neo4j.com/docs/graph-data-science/current/installation/neo4j-server/)).
 
 Then just `sudo neo4j start/stop/restart...` to run.
+
+## How to cite
+
+```elixir
+@article{FernandezSanchez2025,
+  author = {A. Fernandez-Sanchez and Pedro J. Navarro and F. Terroso-Saenz},
+  title = {{MUSYNERGY: A Framework for Music Collaboration Discovery Based on Neural Networks and Graph Analysis}},
+  year = {2025},
+  journal = {Entertainment Computing},
+  doi = {10.1016/j.entcom.2025.101033},
+}
+```
