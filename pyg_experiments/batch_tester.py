@@ -215,11 +215,11 @@ year = 2023
 print("year:", year)
 month = 11
 print("month:", month)
-perc = 0.5
+perc = 0.9
 print("perc:", perc)
 train_collab_with_filename = f"collab_withmb_{year}_{month}_{perc}.pt"
 model_path = f"pyg_experiments/trained_models/model_{model_name}_{year}_{month}_{perc}.pth"
-best_threshold = 0.61
+best_threshold = 0.68
 
 # Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -257,18 +257,24 @@ train_edges_set = set(map(tuple, train_collab_with.t().tolist()))
 def test(model, server_url, criterion, device):
     model.eval()
     all_labels = []
+    times = list()
     all_probs = []
     test_loss = 0.0
     num_batches = 0
     valid_batches = 0
-    with torch.no_grad():
+    with torch.no_grad(), open(f"{model_name}_timings.data", "wb") as out_file:
         for _ in tqdm.tqdm(iter(int, 1)):
             try:
                 response = requests.get(f"{server_url}/get_test_batch")
                 if response.status_code == 200:
                     num_batches += 1
                     sampled_data = pickle.loads(response.content).to(device)
+                    now = time.time()
                     pred_dict = model(sampled_data.x_dict, sampled_data.edge_index_dict)
+                    new_time = time.time() - now
+                    times.append(new_time * 1000)
+                    if len(times) == 10000:
+                        break
                     edge_label_index = sampled_data['artist', 'collab_with', 'artist'].edge_label_index
                     edge_label = sampled_data['artist', 'collab_with', 'artist'].edge_label
 
@@ -300,7 +306,7 @@ def test(model, server_url, criterion, device):
 
                     if len(filtered_edges) == 0:
                         continue  # Skip if no valid edges left
-                    
+
                     valid_batches += 1
 
                     # Normal evaluation with the rests
@@ -328,6 +334,7 @@ def test(model, server_url, criterion, device):
                 print(f"Error during validation batch request: {e}")
                 time.sleep(5) # Wait before retrying
                 continue
+        pickle.dump(times, out_file)
     all_labels = torch.cat(all_labels)
     all_probs = torch.cat(all_probs)
 

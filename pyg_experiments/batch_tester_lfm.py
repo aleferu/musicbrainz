@@ -210,7 +210,7 @@ class GNN_ONECONVONEFF(torch.nn.Module):
 data_folder = "pyg_experiments/ds/"
 
 # Training parameters
-model_name = "main_lfm"
+model_name = "nocat_lfm"
 year = 2021
 print("year:", year)
 month = 11
@@ -248,7 +248,7 @@ tag_channels = sample_train_batch["tag"].x.size(1)
 
 # Initialize model
 # model = GNN_ONECONV(metadata=metadata, hidden_channels=64, out_channels=64).to(device)
-model = GNN(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
+model = GNN_NOCAT(metadata=metadata, hidden_channels=hidden_channels, out_channels=out_channels).to(device)
 model.load_state_dict(torch.load(model_path, weights_only=False))
 
 # Initialize optimizer and loss criterion
@@ -262,10 +262,11 @@ def test(model, server_url, criterion, device):
     model.eval()
     all_labels = []
     all_probs = []
+    times = list()
     test_loss = 0.0
     num_batches = 0
     valid_batches = 0
-    with torch.no_grad():
+    with torch.no_grad(), open(f"{model_name}_timings.data", "wb") as out_file:
         for _ in tqdm.tqdm(iter(int, 1)):
             try:
                 response = requests.get(f"{server_url}/get_test_batch")
@@ -279,7 +280,12 @@ def test(model, server_url, criterion, device):
                         last_fm_match_edge_attr[("artist", "last_fm_match", "artist")] = sampled_data.edge_attr_dict[("artist", "last_fm_match", "artist")]
 
                     # Forward pass
+                    now = time.time()
                     pred_dict = model(sampled_data.x_dict, sampled_data.edge_index_dict, last_fm_match_edge_attr)
+                    new_time = time.time() - now
+                    times.append(new_time * 1000)
+                    if len(times) == 10000:
+                        break
 
                     edge_label_index = sampled_data['artist', 'collab_with', 'artist'].edge_label_index
                     edge_label = sampled_data['artist', 'collab_with', 'artist'].edge_label
@@ -312,7 +318,7 @@ def test(model, server_url, criterion, device):
 
                     if len(filtered_edges) == 0:
                         continue  # Skip if no valid edges left
-                    
+
                     valid_batches += 1
 
                     # Normal evaluation with the rests
@@ -340,6 +346,7 @@ def test(model, server_url, criterion, device):
                 print(f"Error during validation batch request: {e}")
                 time.sleep(5) # Wait before retrying
                 continue
+        pickle.dump(times, out_file)
     all_labels = torch.cat(all_labels)
     all_probs = torch.cat(all_probs)
 
