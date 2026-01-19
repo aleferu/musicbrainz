@@ -61,7 +61,9 @@ def main(driver: Driver, tags: list[str], filename: str) -> None:
     # Drawing
     logging.info("Generating png...")
 
-    plt.figure(figsize=(12, 12))
+    fig_size = 12 if "all" not in filename else 15
+
+    plt.figure(figsize=(fig_size, fig_size))
     sns.heatmap(
         normalized_heatmap_data,
         annot=True,
@@ -78,6 +80,26 @@ def main(driver: Driver, tags: list[str], filename: str) -> None:
     plt.tight_layout()
     plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
     plt.savefig(f"img/{filename}.png")
+
+    plt.figure(figsize=(fig_size, fig_size))
+    sns.heatmap(
+        normalized_heatmap_data,
+        annot=True,
+        cmap="coolwarm",
+        xticklabels=True,
+        yticklabels=True,
+        cbar=True,
+        square=True,
+        fmt=".3f",
+        linewidths=.5,
+        linecolor='black',
+        vmin=0.0,
+        vmax=1.0,
+        cbar_kws={"shrink": .8}
+    )
+    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right', rotation_mode='anchor')
+    plt.savefig(f"img/{filename}_colorbaradjusted.png")
 
     # mask = np.zeros((len(combined_tags), len(combined_tags)), dtype=bool)
     # mask[np.eye(mask.shape[0], dtype=bool)] = True
@@ -170,8 +192,6 @@ if __name__ == '__main__':
     # db connection
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))
 
-    test = ["rock", "pop"] + ["a" * 10] * 10
-
     good_tags = [
         "rock",
         "folk/traditional",
@@ -183,30 +203,28 @@ if __name__ == '__main__':
         "latin",
         "classical and ost",
         "symphonic",
-        "latin_countries"
+        "latin_countries",
+        "country",
+        "avant-garde",
+        "asian_countries",
+        "religion",
+        "drum and bass"
     ]
     bad_tags = [
-        "country",
         "happy",
         "romantic",
         "sad",
-        "avant-garde",
-        "religion",
-        "asian_countries",
         "english_countries",
         "sci-fi",
         "acoustic",
-        "underground",
-        "drum and bass"
+        "underground"
     ]
-
-    # main(driver, test, "test")
 
     main(driver, good_tags, "good_coll_tags")
 
     # main(driver, bad_tags, "bad_coll_tags")
 
-    # main(driver, good_tags + bad_tags, "all_coll_tags")
+    main(driver, good_tags + bad_tags, "all_coll_tags")
 
     driver.close()
 
