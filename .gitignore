@@ -16,3 +16,4 @@ test.ipynb
 pyg_experiments/ds/
 post_data/ds/
 pyg_experiments/trained_models/
+*.data
