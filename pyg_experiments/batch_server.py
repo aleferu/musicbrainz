@@ -24,6 +24,10 @@ print("perc:", perc)
 # train_hd = f"train_hd_{year}_{month}_{perc}.pt"
 train_hd = f"train_hdmb_{year}_{month}_{perc}.pt"
 compt_tree_size = [25, 20]
+# For measuring inference time:
+# batch_size = 1
+# queue_maxsize = 320
+# For testing:
 batch_size = 128
 queue_maxsize = 32
 

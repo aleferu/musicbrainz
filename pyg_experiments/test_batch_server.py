@@ -21,6 +21,9 @@ print("perc:", perc)
 # test_hd = f"full_hdmb_{perc}.pt"
 test_hd = f"full_hd_{perc}.pt"
 compt_tree_size = [25, 20]
+# For measuring inference time:
+# batch_size = 1
+# For testing:
 batch_size = 128
 
 print("Loading data...")
