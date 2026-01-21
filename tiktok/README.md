@@ -1,7 +1,5 @@
 # tiktok
 
-**WIP**
-
 The idea is to extract all the information that we can for the artists in our DB. For that, we first look for tiktok accounts in [Wikidata](https://www.wikidata.org/wiki/Wikidata:Main_Page) and in Musicbrainz and then we do the API calls.
 
 - `get_data.sh` gets a JSONL with information about all entities inside Wikidata with a tiktok account associated.
@@ -15,5 +13,3 @@ The idea is to extract all the information that we can for the artists in our DB
 - `tiktok_requests.ipynb` is a notebook for testing and exploring the TikTok Research API.
 - `call_tiktok.py` queries the TikTok Research API to fetch metrics (followers, likes, videos) and following lists for artists, updating the Neo4j database.
 - `build_following_links.py` computes the Jaccard similarity index based on shared following lists and creates weighted `FOLLOWS` relationships between artists in Neo4j.
-
-## WIP
