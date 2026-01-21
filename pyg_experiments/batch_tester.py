@@ -273,8 +273,6 @@ def test(model, server_url, criterion, device):
                     pred_dict = model(sampled_data.x_dict, sampled_data.edge_index_dict)
                     new_time = time.time() - now
                     times.append(new_time * 1000)
-                    if len(times) == 10000:
-                        break
                     edge_label_index = sampled_data['artist', 'collab_with', 'artist'].edge_label_index
                     edge_label = sampled_data['artist', 'collab_with', 'artist'].edge_label
 
