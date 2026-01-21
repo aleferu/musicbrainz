@@ -15,12 +15,15 @@ A .env file is needed in order to configure the database connection. An example 
 - `lfm` explains how we got the information out of LFM and into neo4j.
 - `post_data` explains how we got the dataset for the MLP and has some scripts and notebooks to compute and graph some stats.
 - `pyg_experiments` explains how we've trained the models.
+- `tiktok` extracts data from TikTok's Research API and loads it into Neo4j.
+- `tiktok_pyg` trains the TikTok models with all the artists with an associated TikTok account.
+- `intiktok_pyg` trains the TikTok models with only the artists with a successful data extraction from TikTok.
 
 ## Dates
 
 - Musicbrainz data: `2024-10-31 21:00:49.130771+00`
 - LastFM data: `2024-11-05` to `2024-11-23`.
-- TikTok data: `2025-10-13` to `ONGOING`.
+- TikTok data: `2025-10-13` to `2025-11-25`.
 
 ## Dataset
 
