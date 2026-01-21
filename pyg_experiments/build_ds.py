@@ -91,7 +91,7 @@ def build_artist_tensor():
     artist_map = get_artist_map()
     logging.info("Building artist tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(artist_map), 17 + 1), dtype=torch.float32)  # See PyG_DS for 15 explained
+    result_tensor = torch.empty((len(artist_map), 17 + 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n:Artist)
@@ -128,8 +128,8 @@ def build_artist_tensor():
             result_tensor[artist_idx, 7]  = record["gender_3"]
             result_tensor[artist_idx, 8]  = record["gender_4"]
             result_tensor[artist_idx, 9]  = record["gender_5"]
-            result_tensor[artist_idx, 10]  = record["popularity_scaled"]
-            result_tensor[artist_idx, 11]  = record["type_1"]
+            result_tensor[artist_idx, 10] = record["popularity_scaled"]
+            result_tensor[artist_idx, 11] = record["type_1"]
             result_tensor[artist_idx, 12] = record["type_2"]
             result_tensor[artist_idx, 13] = record["type_3"]
             result_tensor[artist_idx, 14] = record["type_4"]
@@ -146,7 +146,7 @@ def build_track_tensor():
     track_map = get_track_map()
     logging.info("Building track tensor...")
     driver = GraphDatabase.driver(f"bolt://{DB_HOST}:{DB_PORT}", auth=basic_auth(DB_USER, DB_PASS))  # type: ignore
-    result_tensor = torch.empty((len(track_map), 5 + 1), dtype=torch.float32)  # See PyG_DS for 3 explained
+    result_tensor = torch.empty((len(track_map), 5 + 1), dtype=torch.float32)
     with driver.session() as session:
         query = """
             MATCH (n:Track)
@@ -167,10 +167,10 @@ def build_track_tensor():
         q_result = session.run(query)
         for record in q_result:
             track_idx = track_map[record["id"]]
-            result_tensor[track_idx, 0]  = record["popularity_scaled"]
-            result_tensor[track_idx, 1]  = record["has_year"]
-            result_tensor[track_idx, 2]  = record["year"]
-            result_tensor[track_idx, 3]  = record["month_known"]
+            result_tensor[track_idx, 0] = record["popularity_scaled"]
+            result_tensor[track_idx, 1] = record["has_year"]
+            result_tensor[track_idx, 2] = record["year"]
+            result_tensor[track_idx, 3] = record["month_known"]
             result_tensor[track_idx, 4] = record["sem_1"]
             result_tensor[track_idx, 5] = 1
     logging.info("Saving track tensor...")
