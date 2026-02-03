@@ -17,13 +17,13 @@ Schema visualization (purple -> Artist):
             - *ended* can mean death, a dissolved band...
             - The meaning depends on the instance type. For humans they're typically birth dates. For bands, creation date.
         - *end_dates* (list of integers): Similar to *begin_dates* but viceversa.
-        - *gender_\** (one-hot enconding): Gender/Sex of the artist.
+        - *gender_\** (one-hot encoding): Gender/Sex of the artist.
             - *gender_1* means male.
             - *gender_2* means female.
             - *gender_3* means other.
             - *gender_4* means not applicable.
             - *gender_5* means non-binary.
-        - *type_\** (one-hot enconding): Type of artist.
+        - *type_\** (one-hot encoding): Type of artist.
             - *type_1* means person.
             - *type_2* means group.
             - *type_3* means other.
@@ -35,6 +35,15 @@ Schema visualization (purple -> Artist):
         - *in_last_fm* (boolean): If I've successfully extracted information from LastFM about this node.
         - *listeners* (integer): Sum of all the instances of the artist's listeners in LastFM.
         - *playcount* (integer): Sum of all the instances of the artist's playcount in LastFM.
+    - TikTok:
+        - *tiktok_call* (boolean): If I've tried to extract information from TikTok about this node.
+        - *in_tiktok* (boolean): If I've successfully extracted information from TikTok about this node.
+        - *video_count* (integer): Sum of all the instances of the artist's video count in TikTok.
+        - *follower_count* (integer): Sum of all the instances of the artist's follower count in TikTok.
+        - *likes_count* (integer): Sum of all the instances of the artist's like count in TikTok.
+        - *following_count* (integer): Sum of all the instances of the artist's following count in TikTok.
+        - *following_list* (list of strings): List of all the TikTok accounts the artist's instances follow in TikTok.
+        - *tiktok_accounts* (list of strings): List of all the TikTok accounts associated to the artist's instances.
 
 - **Track**:
     - MusicBrainz:
@@ -72,17 +81,9 @@ Schema visualization (purple -> Artist):
     - LastFM:
         - *LAST_FM_MATCH*: *Artist* to *Artist*. Its inverse is itself.
             - `weight`: 0.0 to 1.0 similar artist score.
-    - Both (although tags come from MB):
+    - Both MB and LastFM (although tags originally come from MB):
         - *HAS_TAG*: *Artist* or *Track* to *Tag*. Its inverse is *TAGS*.
         - *TAGS*.
-
-All relationships/edges have a `pg_weight` field:
-
-```cypher
-MATCH ()-[r]->()
-SET r.pg_weight = CASE
-    WHEN r.weight IS NOT NULL THEN r.weight
-    WHEN r.count IS NOT NULL THEN r.count
-    ELSE 1
-END
-```
+    - TikTok:
+        - *FOLLOWS*: *Artist* to *Artist*. If an artist follows another one.
+            - `weight`: Jaccard index over the artists following lists.
