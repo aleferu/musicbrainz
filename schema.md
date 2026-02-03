@@ -1,10 +1,8 @@
 ## Schema
 
-Schema visualization (purple -> Artist):
+Schema visualization:
 
 ![image.png](./img/schema_vis.png)
-
-**For more stats and for plots see *stats.ipynb*.**
 
 - **Artist**:
     - MusicBrainz:
