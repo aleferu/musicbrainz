@@ -9,3 +9,5 @@ Dataset creation and training of the models using only the artists with a succes
 - `test.py`: Testing script for the standard models.
 - `test_z.py`: Testing script for the Z models.
 - `train.sh` / `train_z.sh` / `test.sh` / `test_z.sh`: Shell scripts to automate training and testing across different years and percentages.
+- `test_results.py`: Does what `test.py` does but also extracts the pairs of artist IDs when a TP is found.
+- `improve_examples.py`: Takes the CSV exported by `test_results.py` and adds additional information, such as most popular track name and tags.

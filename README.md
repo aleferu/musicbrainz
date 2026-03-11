@@ -18,6 +18,7 @@ A .env file is needed in order to configure the database connection. An example 
 - `tiktok` extracts data from TikTok's Research API and loads it into Neo4j.
 - `tiktok_pyg` trains the TikTok models with all the artists with an associated TikTok account.
 - `intiktok_pyg` trains the TikTok models with only the artists with a successful data extraction from TikTok.
+- `post_data` has some scripts to compute and graph some stats.
 
 ## Dates
 
